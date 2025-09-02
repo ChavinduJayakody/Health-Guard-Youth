@@ -3,6 +3,7 @@ import { signup, signin } from "../controllers/authController.js";
 
 const router = express.Router();
 
+router.use(express.json());
 router.post("/signup", signup);
 router.post("/signin", signin);
 
