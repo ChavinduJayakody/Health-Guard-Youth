@@ -17,7 +17,7 @@ export const signup = async (req, res) => {
     }
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashed, age, gender, height, weight });
-    // const token = signToken(user._id);
+    const token = signToken(user._id);
     res.status(201, "/signin").json({ message: "User created", user: { id: user._id, email: user.email }, token });
   } catch (err) {
     res.status(500).json({ message: "Signup failed", error: err.message });
@@ -39,7 +39,7 @@ export const signin = async (req, res) => {
     const token = signToken(user._id);
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false,
       maxAge: 7 * 24 * 60 * 60 * 1000, 
       sameSite: "strict",
     });
@@ -52,4 +52,19 @@ export const signin = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "Signin failed", error: err.message });
   }
+};
+
+export const getUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('-password');
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching user", error: err.message });
+  }
+};
+
+export const logout = (req, res) => {
+  res.clearCookie('token', { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
+  res.status(200).json({ message: "Logged out" });
 };
