@@ -14,36 +14,45 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
+import { useUser } from "@/context/UserContext"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const { user, loading, logout } = useUser()
   const [admin, setAdmin] = useState<any>(null)
   const { toast } = useToast()
   const router = useRouter()
   const pathname = usePathname()
 
-  useEffect(() => {
-    const userData = localStorage.getItem("user")
-    const adminData = localStorage.getItem("admin")
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
-    if (adminData) {
-      setAdmin(JSON.parse(adminData))
-    }
-  }, [])
+  // useEffect(() => {
+  //   const fetchUser = async () => {
+  //     try {
+  //       const response = await fetch("/api/auth/user", { credentials: "include" });
+  //       if (response.ok) {
+  //         const data = await response.json();
+  //         setUser(data); 
+  //       } else if (response.status === 401) {
+  //         setUser(null);
+  //       }
+  //     } catch (err) {
+  //       console.error("Error fetching user:", err);
+  //       setUser(null);
+  //     }
+  //   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user")
-    localStorage.removeItem("admin")
-    setUser(null)
-    setAdmin(null)
-    toast({
-      title: "Logged Out Successfully",
-      description: "You have been safely logged out.",
-    })
-    router.push("/")
+  //   fetchUser();
+  // }, []);
+
+  const handleLogoutClick = async () => {
+    try {
+      await logout()
+      toast({
+        title: "Logged Out Successfully",
+        description: "You have been safely logged out.",
+      })
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const navItems = [
@@ -87,64 +96,45 @@ export default function Header() {
           </nav>
 
           {/* User Actions */}
+          {/* User Actions */}
           <div className="flex items-center space-x-4">
-            {user || admin ? (
+            {!loading && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback className="bg-gradient-to-r from-emerald-500 to-blue-600 text-white">
-                        {(user?.name || admin?.name || "U").charAt(0).toUpperCase()}
+                        {user.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex flex-col space-y-1 p-2">
-                    <p className="text-sm font-medium leading-none">{user?.name || admin?.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user?.email || admin?.email}</p>
+                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
-                  {user && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/dashboard">
-                          <User className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/profile">
-                          <Settings className="mr-2 h-4 w-4" />
-                          Profile
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/history">
-                          <History className="mr-2 h-4 w-4" />
-                          History
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {admin && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/dashboard">
-                          <Shield className="mr-2 h-4 w-4" />
-                          Admin Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/articles">
-                          <FileText className="mr-2 h-4 w-4" />
-                          Manage Articles
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard">
+                      <User className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/history">
+                      <History className="mr-2 h-4 w-4" />
+                      History
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
+                  <DropdownMenuItem onClick={handleLogoutClick}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Log out
                   </DropdownMenuItem>
@@ -164,6 +154,7 @@ export default function Header() {
             </Button>
           </div>
         </div>
+        
 
         {/* Mobile Navigation */}
         {isMenuOpen && (

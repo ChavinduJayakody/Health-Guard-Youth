@@ -169,7 +169,7 @@ export default function ResultsPage() {
       recommendations.push({
         title: "Quit Smoking Program",
         description:
-          "Contact the National Authority on Tobacco and Alcohol (NATA) helpline: 1929 for smoking cessation support.",
+          "Contact the National Authority on Tobacco and Alcohol (NATA) helpline: 1948 for smoking cessation support.",
         priority: "high",
         icon: "🚭",
       })
