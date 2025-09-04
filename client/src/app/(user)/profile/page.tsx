@@ -21,30 +21,39 @@ import {
 } from "@/components/ui/alert-dialog"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import api from "@/lib/api"
+import { useUser } from "@/context/UserContext"
+import { Eye, EyeOff, Lock } from "lucide-react"
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<any>(null)
+  const { user, refreshUser, logout } = useUser()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<any>({})
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
   const router = useRouter()
 
   useEffect(() => {
-    const userData = localStorage.getItem("user")
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
-      setUser(parsedUser)
-      setFormData(parsedUser)
-    }
-  }, [])
+    if (user) setFormData(user)
+  }, [user])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }))
   }
 
-  const handleSave = () => {
-    localStorage.setItem("user", JSON.stringify(formData))
-    setUser(formData)
-    setIsEditing(false)
+  const handleSave = async () => {
+    try {
+      await api.put(`/auth/userupdate/`, formData, { withCredentials: true })
+
+      await refreshUser() 
+      setIsEditing(false)
+    } catch (err) {
+      console.error("Failed to update profile:", err)
+    }
   }
 
   const handleCancel = () => {
@@ -52,24 +61,51 @@ export default function ProfilePage() {
     setIsEditing(false)
   }
 
-  const handleDeleteAccount = () => {
-    localStorage.removeItem("user")
-    localStorage.removeItem("lastAssessment")
-    router.push("/")
+    const handlePasswordChange = async () => {
+  if (passwordData.newPassword !== passwordData.confirmPassword) {
+    alert("Passwords do not match!");
+    return;
+  }
+
+  try {
+    // Only send required fields
+    const payload = {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+    };
+
+    await api.put(`/auth/user/password`, passwordData, { withCredentials: true })
+
+
+    alert("Password changed successfully!");
+    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  } catch (err) {
+    console.error("Failed to change password:", err.response?.data || err.message);
+    alert(err.response?.data?.message || "Failed to change password");
+  }
+};
+
+
+  const handleDeleteAccount = async () => {
+    try {
+      await api.delete(`/auth/user/${user._id}`, { withCredentials: true })
+      await logout()
+      router.push("/")
+    } catch (err) {
+      console.error("Failed to delete account:", err)
+    }
   }
 
   const calculateBMI = () => {
-    if (user?.height && user?.weight) {
-      const heightM = Number.parseFloat(user.height) / 100
-      const weightKg = Number.parseFloat(user.weight)
+    if (formData?.height && formData?.weight) {
+      const heightM = Number.parseFloat(formData.height) / 100
+      const weightKg = Number.parseFloat(formData.weight)
       return (weightKg / (heightM * heightM)).toFixed(1)
     }
     return "N/A"
   }
 
-  if (!user) {
-    return <div>Loading...</div>
-  }
+  if (!user) return <div>Loading...</div>
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -115,99 +151,41 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    {isEditing ? (
-                      <Input
-                        id="name"
-                        value={formData.name || ""}
-                        onChange={(e) => handleInputChange("name", e.target.value)}
-                      />
-                    ) : (
-                      <div className="p-3 bg-gray-50 rounded-md">{user.name}</div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    {isEditing ? (
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email || ""}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
-                      />
-                    ) : (
-                      <div className="p-3 bg-gray-50 rounded-md">{user.email}</div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="age">Age</Label>
-                    {isEditing ? (
-                      <Input
-                        id="age"
-                        type="number"
-                        value={formData.age || ""}
-                        onChange={(e) => handleInputChange("age", e.target.value)}
-                      />
-                    ) : (
-                      <div className="p-3 bg-gray-50 rounded-md">{user.age}</div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    {isEditing ? (
-                      <Select
-                        value={formData.gender || ""}
-                        onValueChange={(value) => handleInputChange("gender", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="p-3 bg-gray-50 rounded-md capitalize">{user.gender}</div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="height">Height (cm)</Label>
-                    {isEditing ? (
-                      <Input
-                        id="height"
-                        type="number"
-                        value={formData.height || ""}
-                        onChange={(e) => handleInputChange("height", e.target.value)}
-                      />
-                    ) : (
-                      <div className="p-3 bg-gray-50 rounded-md">{user.height || "Not provided"}</div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="weight">Weight (kg)</Label>
-                    {isEditing ? (
-                      <Input
-                        id="weight"
-                        type="number"
-                        value={formData.weight || ""}
-                        onChange={(e) => handleInputChange("weight", e.target.value)}
-                      />
-                    ) : (
-                      <div className="p-3 bg-gray-50 rounded-md">{user.weight || "Not provided"}</div>
-                    )}
-                  </div>
+                  {["name", "email", "age", "gender", "height", "weight"].map((field) => (
+                    <div className="space-y-2" key={field}>
+                      <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1)}</Label>
+                      {isEditing ? (
+                        field === "gender" ? (
+                          <Select
+                            value={formData.gender || ""}
+                            onValueChange={(value) => handleInputChange("gender", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">Male</SelectItem>
+                              <SelectItem value="female">Female</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            id={field}
+                            type={field === "email" ? "email" : "text"}
+                            value={formData[field] || ""}
+                            onChange={(e) => handleInputChange(field, e.target.value)}
+                          />
+                        )
+                      ) : (
+                        <div className="p-3 bg-gray-50 rounded-md">{formData[field] || "Not provided"}</div>
+                      )}
+                    </div>
+                  ))}
                 </div>
 
-                {/* BMI Display */}
-                {user.height && user.weight && (
+                {/* BMI */}
+                {formData.height && formData.weight && (
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
@@ -222,7 +200,50 @@ export default function ProfilePage() {
             </Card>
           </motion.div>
 
-          {/* Account Settings */}
+          {/* Change Password */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Lock className="w-5 h-5 text-blue-600" />
+                  <span>Change Password</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {["currentPassword", "newPassword", "confirmPassword"].map((field, idx) => (
+                  <div key={field}>
+                    <Label htmlFor={field}>
+                      {field === "currentPassword"
+                        ? "Current Password"
+                        : field === "newPassword"
+                        ? "New Password"
+                        : "Confirm Password"}
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id={field}
+                        type={showPassword ? "text" : "password"}
+                        value={(passwordData as any)[field]}
+                        onChange={(e) => setPasswordData({ ...passwordData, [field]: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-2 text-gray-500"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <Button onClick={handlePasswordChange} className="w-full">
+                  Update Password
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Danger Zone */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
               <CardHeader>

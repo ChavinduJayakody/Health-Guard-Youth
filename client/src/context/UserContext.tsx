@@ -66,6 +66,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   )
 }
 
+
 // Hook to use the context
 export const useUser = () => {
   const context = useContext(UserContext)
