@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useUser } from "@/context/UserContext"
 
 interface AuthFormProps {
   isLogin: boolean
@@ -18,6 +19,7 @@ interface AuthFormProps {
 }
 
 function LoginForm({ setIsLogin }: AuthFormProps) {
+  const { login } = useUser();
   const [formData, setFormData] = useState({ email: "", password: "" })
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
@@ -28,31 +30,22 @@ function LoginForm({ setIsLogin }: AuthFormProps) {
   }
 
   const handleSubmit = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-        credentials: "include",
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.message || "Sign in failed")
+  console.log(formData);
 
-      toast({
-        title: "Login successful 🎉",
-        description: "Redirecting to dashboard...",
-      })
-    setTimeout(() => {
-      router.push("/dashboard")
-      router.refresh()
-    }, 800)    } catch (err: any) {
-      toast({
-        title: "Login failed",
-        description: err.message,
-        variant: "destructive",
-      })
-    }
+  try {
+    await login(formData.email, formData.password);
+
+    toast({
+      title: "Login successful 🎉",
+    });
+  } catch (err: any) {
+    toast({
+      title: "Login failed",
+      description: err.response?.data?.message || err.message || "Something went wrong",
+      variant: "destructive",
+    });
   }
+};
 
   return (
     <motion.div
