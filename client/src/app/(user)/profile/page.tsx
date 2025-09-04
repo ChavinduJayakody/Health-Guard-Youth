@@ -88,7 +88,7 @@ export default function ProfilePage() {
 
   const handleDeleteAccount = async () => {
     try {
-      await api.delete(`/auth/user/${user._id}`, { withCredentials: true })
+      await api.delete(`/auth/user/delete`, { withCredentials: true })
       await logout()
       router.push("/")
     } catch (err) {
