@@ -38,11 +38,11 @@ export const signin = async (req, res) => {
 
     const token = signToken(user._id);
     res.cookie("token", token, {
-      httpOnly: true,
-      secure: false,
-      maxAge: 7 * 24 * 60 * 60 * 1000, 
-      sameSite: "strict",
-    });
+  httpOnly: true,
+  secure: false,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  sameSite: "lax",
+});
 
     res.status(200).json({
       message: "Signed in",
@@ -55,8 +55,9 @@ export const signin = async (req, res) => {
 };
 
 export const getUser = async (req, res) => {
+  const {id} = req.user;
   try {
-    const user = await User.findById(req.userId).select('-password');
+    const user = await User.findById(id).select('-password');
     if (!user) return res.status(404).json({ message: "User not found" });
     res.status(200).json(user);
   } catch (err) {
