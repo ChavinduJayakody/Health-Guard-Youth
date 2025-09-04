@@ -6,15 +6,120 @@ import { Eye, EyeOff, Mail, Lock, User, Heart, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
-export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true)
+interface AuthFormProps {
+  isLogin: boolean
+  setIsLogin: (value: boolean) => void
+}
+
+function LoginForm({ setIsLogin }: AuthFormProps) {
+  const [formData, setFormData] = useState({ email: "", password: "" })
   const [showPassword, setShowPassword] = useState(false)
-  const [step, setStep] = useState(1)
+  const router = useRouter()
+  const { toast } = useToast()
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+        credentials: "include",
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || "Sign in failed")
+
+      toast({
+        title: "Login successful 🎉",
+        description: "Redirecting to dashboard...",
+      })
+    setTimeout(() => {
+      router.push("/dashboard")
+      router.refresh()
+    }, 800)    } catch (err: any) {
+      toast({
+        title: "Login failed",
+        description: err.message,
+        variant: "destructive",
+      })
+    }
+  }
+
+  return (
+    <motion.div
+      key="login"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-4"
+    >
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter your email"
+            className="pl-10"
+            value={formData.email}
+            onChange={(e) => handleInputChange("email", e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <div className="relative">
+          <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter your password"
+            className="pl-10 pr-10"
+            value={formData.password}
+            onChange={(e) => handleInputChange("password", e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      <Button
+        onClick={handleSubmit}
+        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+        size="lg"
+      >
+        Sign In
+      </Button>
+
+      <div className="text-center">
+        <button
+          onClick={() => setIsLogin(false)}
+          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+        >
+          Don't have an account? Sign up
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+function SignupForm({ setIsLogin }: AuthFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -24,19 +129,35 @@ export default function AuthPage() {
     height: "",
     weight: "",
   })
-  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+  const { toast } = useToast()
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleNext = () => {
-    if (step === 1 && !isLogin) {
-      setStep(2)
-    } else {
-      // Simulate login/signup success
-      localStorage.setItem("user", JSON.stringify(formData))
-      router.push("/dashboard")
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+        credentials: "include",
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || "Signup failed")
+
+      toast({
+        title: "Account created 🎉",
+        description: "Please sign in to continue",
+      })
+      setIsLogin(true)
+    } catch (err: any) {
+      toast({
+        title: "Signup failed",
+        description: err.message,
+        variant: "destructive",
+      })
     }
   }
 
@@ -46,8 +167,151 @@ export default function AuthPage() {
       const weightKg = Number.parseFloat(formData.weight)
       return (weightKg / (heightM * heightM)).toFixed(1)
     }
-    return ""
+    return null
   }
+
+  return (
+    <motion.div
+      key="signup"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className="space-y-4"
+    >
+      <div className="space-y-2">
+        <Label htmlFor="name">Full Name</Label>
+        <div className="relative">
+          <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+          <Input
+            id="name"
+            type="text"
+            placeholder="Enter your full name"
+            className="pl-10"
+            value={formData.name}
+            onChange={(e) => handleInputChange("name", e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter your email"
+            className="pl-10"
+            value={formData.email}
+            onChange={(e) => handleInputChange("email", e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <div className="relative">
+          <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Create a password"
+            className="pl-10 pr-10"
+            value={formData.password}
+            onChange={(e) => handleInputChange("password", e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="age">Age</Label>
+          <Input
+            id="age"
+            type="number"
+            placeholder="25"
+            value={formData.age}
+            onChange={(e) => handleInputChange("age", e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="gender">Gender</Label>
+          <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="male">Male</SelectItem>
+              <SelectItem value="female">Female</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="height">Height (cm)</Label>
+          <Input
+            id="height"
+            type="number"
+            placeholder="170"
+            value={formData.height}
+            onChange={(e) => handleInputChange("height", e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="weight">Weight (kg)</Label>
+          <Input
+            id="weight"
+            type="number"
+            placeholder="65"
+            value={formData.weight}
+            onChange={(e) => handleInputChange("weight", e.target.value)}
+          />
+        </div>
+      </div>
+
+      {calculateBMI() && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-blue-50 rounded-lg text-center"
+        >
+          <p className="text-sm text-gray-600">Your BMI</p>
+          <p className="text-2xl font-bold text-blue-600">{calculateBMI()}</p>
+        </motion.div>
+      )}
+
+      <Button
+        onClick={handleSubmit}
+        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+        size="lg"
+      >
+        Create Account
+      </Button>
+
+      <div className="text-center">
+        <button
+          onClick={() => setIsLogin(true)}
+          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+        >
+          Already have an account? Sign in
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+export default function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -79,160 +343,8 @@ export default function AuthPage() {
 
           <CardContent className="space-y-6">
             <AnimatePresence mode="wait">
-              {step === 1 && (
-                <motion.div
-                  key="step1"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
-                >
-                  {!isLogin && (
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                        <Input
-                          id="name"
-                          placeholder="Enter your full name"
-                          className="pl-10"
-                          value={formData.name}
-                          onChange={(e) => handleInputChange("name", e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="Enter your email"
-                        className="pl-10"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        className="pl-10 pr-10"
-                        value={formData.password}
-                        onChange={(e) => handleInputChange("password", e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {!isLogin && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="age">Age</Label>
-                          <Input
-                            id="age"
-                            type="number"
-                            placeholder="Age"
-                            value={formData.age}
-                            onChange={(e) => handleInputChange("age", e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="gender">Gender</Label>
-                          <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="male">Male</SelectItem>
-                              <SelectItem value="female">Female</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </motion.div>
-              )}
-
-              {step === 2 && !isLogin && (
-                <motion.div
-                  key="step2"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
-                >
-                  <div className="text-center mb-6">
-                    <h3 className="text-lg font-semibold">Physical Information</h3>
-                    <p className="text-gray-600 text-sm">Help us calculate your BMI</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="height">Height (cm)</Label>
-                      <Input
-                        id="height"
-                        type="number"
-                        placeholder="170"
-                        value={formData.height}
-                        onChange={(e) => handleInputChange("height", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="weight">Weight (kg)</Label>
-                      <Input
-                        id="weight"
-                        type="number"
-                        placeholder="65"
-                        value={formData.weight}
-                        onChange={(e) => handleInputChange("weight", e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {calculateBMI() && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-blue-50 rounded-lg text-center"
-                    >
-                      <p className="text-sm text-gray-600">Your BMI</p>
-                      <p className="text-2xl font-bold text-blue-600">{calculateBMI()}</p>
-                    </motion.div>
-                  )}
-
-                  <Button onClick={() => setStep(1)} variant="outline" className="w-full">
-                    Back
-                  </Button>
-                </motion.div>
-              )}
+              {isLogin ? <LoginForm setIsLogin={setIsLogin} /> : <SignupForm setIsLogin={setIsLogin} />}
             </AnimatePresence>
-
-            <Button
-              onClick={handleNext}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-              size="lg"
-            >
-              {isLogin ? "Sign In" : step === 1 ? "Continue" : "Create Account"}
-            </Button>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -264,15 +376,6 @@ export default function AuthPage() {
               </svg>
               Continue with Google
             </Button>
-
-            <div className="text-center">
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
-                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-              </button>
-            </div>
           </CardContent>
         </Card>
       </motion.div>
