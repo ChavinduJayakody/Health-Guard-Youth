@@ -1,4 +1,6 @@
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import Admin from "../models/Admin.js";
 
 export const protect = (req, res, next) => {
   const token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
@@ -13,4 +15,5 @@ export const protect = (req, res, next) => {
     res.status(401).json({ message: "Token invalid or expired" });
   }
 };
+
 
