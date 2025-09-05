@@ -38,9 +38,10 @@ import {
   Cell,
 } from "recharts"
 import { useToast } from "@/hooks/use-toast"
-import { generateAdminReport } from "@/lib/pdf-generator"
+// import { generateAdminReport } from "@/lib/pdf-generator"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useAdmin } from "@/context/AdminContext"
 
 const riskTrendData = [
   { month: "Jan", low: 45, medium: 30, high: 25 },
@@ -140,31 +141,29 @@ const recentAssessments = [
 ]
 
 export default function AdminDashboard() {
-  const [admin, setAdmin] = useState<any>(null)
+  const { admin, loading, logout } = useAdmin()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterRisk, setFilterRisk] = useState("all")
   const [filterGender, setFilterGender] = useState("all")
   const router = useRouter()
   const { toast } = useToast()
-
-  useEffect(() => {
-    const adminData = localStorage.getItem("admin")
-    if (adminData) {
-      setAdmin(JSON.parse(adminData))
-    } else {
-      router.push("/admin/login")
-    }
-  }, [router])
-
-  const handleLogout = () => {
-    localStorage.removeItem("admin")
-    setAdmin(null)
+if (loading) return <p>Loading...</p>
+  const handleLogout = async () => {
+  try {
+    await logout(); // calls AdminContext logout
     toast({
       title: "Logged Out Successfully",
       description: "You have been safely logged out of the admin panel.",
-    })
-    router.push("/")
+    });
+  } catch (err: any) {
+    toast({
+      title: "Logout Failed",
+      description: err?.message || "Something went wrong",
+      variant: "destructive",
+    });
   }
+};
+
 
   const exportData = () => {
     try {

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Shield, Eye, EyeOff, Phone } from "lucide-react"
@@ -13,71 +12,52 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useAdmin } from "@/context/AdminContext"
 
 export default function AdminLoginPage() {
+  const { login } = useAdmin();
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: "",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
+  
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault(); // prevent page reload
+  setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+  try {
+    await login(formData.email, formData.password);
 
-    // Simple authentication (in real app, this would be server-side)
-    if (formData.username === "admin" && formData.password === "healthguard2024") {
-      const adminData = {
-        id: 1,
-        username: formData.username,
-        name: "Dr. Samantha Perera",
-        role: "Healthcare Administrator",
-        loginTime: new Date().toISOString(),
-      }
+    toast({
+      title: "Login successful 🎉",
+    });
 
-      localStorage.setItem("admin", JSON.stringify(adminData))
-
-      toast({
-        title: "Login Successful",
-        description: "Welcome to HealthGuard Admin Dashboard",
-      })
-
-      router.push("/admin/dashboard")
-    } else {
-      toast({
-        title: "Login Failed",
-        description: "Invalid username or password. Please try again.",
-        variant: "destructive",
-      })
-    }
-
-    setIsLoading(false)
+    // Redirect after successful login
+    router.push("/admin/dashboard"); // change to your admin dashboard route
+  } catch (err: any) {
+    toast({
+      title: "Login failed",
+      description:
+        err.response?.data?.message || err.message || "Something went wrong",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
   }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Emergency Alert */}
-      <div className="bg-red-50 border-b border-red-200">
-        <div className="container mx-auto px-4 py-2">
-          <Alert className="border-red-200 bg-transparent">
-            <Phone className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">
-              <strong>Emergency:</strong> Call 1990 for immediate medical assistance
-            </AlertDescription>
-          </Alert>
-        </div>
-      </div>
-
       <div className="flex items-center justify-center min-h-[calc(100vh-60px)] p-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
           <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
@@ -91,13 +71,13 @@ export default function AdminLoginPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={formData.username}
-                    onChange={(e) => handleInputChange("username", e.target.value)}
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
                     required
                     className="text-lg"
                   />
@@ -140,14 +120,6 @@ export default function AdminLoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-900 mb-2">Demo Credentials</h4>
-                <p className="text-sm text-blue-800">
-                  <strong>Username:</strong> admin
-                  <br />
-                  <strong>Password:</strong> healthguard2024
-                </p>
-              </div>
 
               <div className="mt-6 text-center">
                 <Link href="/" className="text-blue-600 hover:text-blue-700 text-sm">
