@@ -25,7 +25,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  // Fetch user on mount
   useEffect(() => {
     refreshUser().finally(() => setLoading(false))
   }, [])
@@ -67,7 +66,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 }
 
 
-// Hook to use the context
 export const useUser = () => {
   const context = useContext(UserContext)
   if (!context) throw new Error("useUser must be used within UserProvider")
