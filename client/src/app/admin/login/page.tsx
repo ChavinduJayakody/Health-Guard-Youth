@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault(); // prevent page reload
+  e.preventDefault(); 
   setIsLoading(true);
 
   try {
@@ -41,8 +41,7 @@ export default function AdminLoginPage() {
       title: "Login successful 🎉",
     });
 
-    // Redirect after successful login
-    router.push("/admin/dashboard"); // change to your admin dashboard route
+    router.push("/admin/dashboard"); 
   } catch (err: any) {
     toast({
       title: "Login failed",
