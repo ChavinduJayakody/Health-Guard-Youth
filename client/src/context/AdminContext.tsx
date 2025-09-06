@@ -51,7 +51,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      await api.post("/auth/admin/logout")
+      await api.post("/admin/logout")
       setAdmin(null)
       router.push("/admin/login")
     } catch (err) {
