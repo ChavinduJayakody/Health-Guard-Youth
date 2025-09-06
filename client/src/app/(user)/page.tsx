@@ -197,7 +197,7 @@ export default function HomePage() {
             >
               <div className="relative">
                 <img
-                  src="/hero1.png"
+                  src="/hero2.jpg"
                   alt="HealthGuard platform demonstration"
                   className="w-full h-auto rounded-2xl shadow-2xl"
                 />

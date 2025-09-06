@@ -1,315 +1,479 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, ArrowRight, Activity, Heart, Droplets, ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Slider } from "@/components/ui/slider"
-import { Progress } from "@/components/ui/progress"
-import { useToast } from "@/hooks/use-toast"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+// assessment/page.tsx (corrected)
+"use client";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, ArrowRight, Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/context/UserContext"
 
 interface FormData {
-  [key: string]: any
+  [key: string]: any;
 }
 
 interface AssessmentStep {
-  title: string
-  description: string
-  fields: string[]
+  title: string;
+  description: string;
+  fields: string[];
 }
 
 interface SlideshowImage {
-  src: string
-  alt: string
-  title: string
-  description: string
+  src: string;
+  alt: string;
+  title: string;
+  description: string;
 }
 
 const assessmentSteps: AssessmentStep[] = [
   {
     title: "Personal Information",
     description: "Let's start with basic details to personalize your assessment.",
-    fields: ["age", "gender"],
+    fields: ["name", "email", "age", "gender"],
   },
   {
     title: "Physical Measurements & Symptoms",
     description: "Provide measurements and any symptoms for a comprehensive risk assessment.",
-    fields: ["height", "weight", "bloodPressure", "heartRate", "polydipsia", "polyuria", "fatigue"],
+    fields: ["height", "weight", "bloodPressure", "heartRate", "polydipsia", "polyuria", "fatigue", "family_history", "previous_heart_problems"],
   },
   {
     title: "Lifestyle Assessment",
     description: "Your daily habits play a crucial role in your health.",
     fields: ["smoking", "alcohol", "diet", "exercise_days", "sedentary_hours", "sleep", "stress"],
   },
-]
+];
 
 const slideshowImages: SlideshowImage[] = [
   {
-    src: "/young-sri-lankan-person-using-health-app-on-smartp.png",
+    src: "/early-detection.png",
     alt: "Young person using health assessment app",
     title: "Empower Your Health",
     description: "Take charge with a personalized health assessment",
   },
   {
-    src: "/healthy-sri-lankan-traditional-food-with-vegetable.png",
+    src: "/personalized-care.png",
     alt: "Healthy Sri Lankan traditional food",
     title: "Fuel Your Body",
     description: "Discover how nutrition impacts your wellness",
   },
   {
-    src: "/health-progress-dashboard-with-charts-and-graphs-s.png",
+    src: "/progress-tracking.png",
     alt: "Health progress dashboard",
     title: "Track Your Journey",
     description: "Visualize your health progress with insights",
   },
   {
-    src: "/diabetes-prevention-healthy-lifestyle-with-blood-s.png",
+    src: "/diabetes.png",
     alt: "Diabetes prevention lifestyle",
     title: "Prevent Diabetes",
     description: "Early detection for a healthier future",
   },
   {
-    src: "/heart-health-cardiovascular-exercise-and-healthy-h.png",
+    src: "/heart.png",
     alt: "Heart health and exercise",
     title: "Heart Matters",
     description: "Protect your heart with proactive screening",
   },
-]
-
-const diabetesCoef = [-0.027407552583179968, -2.439496738939884, 2.7010310516970915, 2.826000300914173, 0.4969873293759658, 0.5041788388724303, 0.7603980016994618, 1.138201951970756, 0.5454927084289005, -1.3798913231218795, 1.4223032183190574, -0.370054877652855, 0.8379524923153456, -0.32426788965456, -0.17838670721197933, -0.18537483566280566]
-const diabetesIntercept = 1.197076197122655
-const heartCoef = [0.008772949594238931, -0.14565977885497705, -0.0011350989383236323, -0.0159730881785711, -0.1325709266065486, -0.313151913268581, 0.3805611788716861, 0.23811357446331025, 0.6861401331816692, 0.04379514736589929, -0.3992708302094961, 0.38469922855256716, -0.09385113690905998, 0.015903444069011403, -0.03017000972972129, 0.0323790904963488, 0.0009333852705929462, -0.04577299889411616, -0.09704137341182054, -0.008386850998149228, 0.0023050573163857857]
-const heartIntercept = 0.27405516462610224
-const meanCholesterol = 262.9189189189189
-const meanTriglycerides = 442.60135135135135
+];
 
 export default function AssessmentPage() {
-  const [currentStep, setCurrentStep] = useState<number>(0)
-  const [formData, setFormData] = useState<FormData>({})
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  const [currentSlide, setCurrentSlide] = useState<number>(0)
-  const router = useRouter()
-  const { toast } = useToast()
+  const { user, loading } = useUser();
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [formData, setFormData] = useState<FormData>({});
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [currentSlide, setCurrentSlide] = useState<number>(0);
+  const router = useRouter();
+  const { toast } = useToast();
 
-  const progress = ((currentStep + 1) / assessmentSteps.length) * 100
+  const progress = ((currentStep + 1) / assessmentSteps.length) * 100;
 
-useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await fetch("/api/auth/user", { credentials: "include" });
-        if (response.ok) {
-          const user = await response.json();
-          setFormData((prev) => ({
-            ...prev,
-            age: user.age || prev.age,
-            gender: user.gender || prev.gender,
-            height: user.height || prev.height,
-            weight: user.weight || prev.weight,
-          }));
-          toast({ title: "User Data Loaded", description: "Your profile details have been prefilled." });
-        } else if (response.status === 401) {
-          toast({ title: "Not Logged In", description: "Redirecting to login...", variant: "destructive" });
-          router.push("/auth");
-        }
-      } catch (err) {
-        console.error("Error fetching user:", err);
-        toast({ title: "Error", description: "Failed to load user data.", variant: "destructive" });
-      }
-    };
-
-    fetchUser();
+  useEffect(() => {
+    if (!loading && !user) {
+      toast({
+        title: "Not Logged In",
+        description: "Redirecting to login...",
+        variant: "destructive",
+      });
+      router.push("/auth");
+    } else if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        age: user.age || prev.age,
+        gender: user.gender || prev.gender,
+      }));
+      toast({
+        title: "User Data Loaded",
+        description: "Your profile details have been prefilled.",
+      });
+    }
 
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slideshowImages.length)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
+      setCurrentSlide((prev) => (prev + 1) % slideshowImages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user, loading, router, toast]);
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const validateCurrentStep = (): boolean => {
-    const currentFields = assessmentSteps[currentStep].fields
-    const requiredFields = ['age', 'gender', 'height', 'weight'] 
+    const currentFields = assessmentSteps[currentStep].fields;
+    const requiredFields = ["name", "email", "age", "gender", "height", "weight", "bloodPressure", "heartRate", "diet", "exercise_days", "sedentary_hours", "sleep", "stress"];
+    const stringFields = ["name", "email", "gender", "bloodPressure", "polydipsia", "polyuria", "fatigue", "family_history", "previous_heart_problems", "smoking", "alcohol", "diet"];
+    const numericFields = ["age", "height", "weight", "heartRate", "exercise_days", "sedentary_hours", "sleep", "stress"];
+
     for (const field of currentFields) {
-      if (requiredFields.includes(field) && !formData[field]) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all required fields to proceed.",
-          variant: "destructive",
-        })
-        return false
+      if (requiredFields.includes(field)) {
+        // Check for empty or invalid values
+        if (formData[field] === undefined || formData[field] === null || formData[field] === "") {
+          toast({
+            title: "Missing Information",
+            description: `Please fill in ${field} to proceed.`,
+            variant: "destructive",
+          });
+          return false;
+        }
+
+        // String field validation
+        if (stringFields.includes(field)) {
+          const value = String(formData[field]);
+          if (value.trim() === "") {
+            toast({
+              title: "Invalid Input",
+              description: `Please provide a valid value for ${field}.`,
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "bloodPressure") {
+            const bpPattern = /^\d{2,3}\/\d{2,3}$/;
+            if (!bpPattern.test(value)) {
+              toast({
+                title: "Invalid Blood Pressure",
+                description: "Please enter blood pressure in the format '120/80'.",
+                variant: "destructive",
+              });
+              return false;
+            }
+            const [systolic, diastolic] = value.split('/').map(Number);
+            if (systolic < 50 || systolic > 250 || diastolic < 30 || diastolic > 150) {
+              toast({
+                title: "Invalid Blood Pressure",
+                description: "Blood pressure values are out of realistic range.",
+                variant: "destructive",
+              });
+              return false;
+            }
+          }
+          if (field === "email") {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(value)) {
+              toast({
+                title: "Invalid Email",
+                description: "Please enter a valid email address.",
+                variant: "destructive",
+              });
+              return false;
+            }
+          }
+        }
+
+        // Numeric field validation
+        if (numericFields.includes(field)) {
+          const value = Number(formData[field]);
+          if (isNaN(value) || value <= 0) {
+            toast({
+              title: "Invalid Input",
+              description: `Please enter a positive number for ${field}.`,
+              variant: "destructive",
+            });
+            return false;
+          }
+          // Range checks for specific fields
+          if (field === "age" && (value < 18 || value > 120)) {
+            toast({
+              title: "Invalid Age",
+              description: "Age must be between 18 and 120.",
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "height" && (value < 100 || value > 250)) {
+            toast({
+              title: "Invalid Height",
+              description: "Height must be between 100 and 250 cm.",
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "weight" && (value < 30 || value > 300)) {
+            toast({
+              title: "Invalid Weight",
+              description: "Weight must be between 30 and 300 kg.",
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "heartRate" && (value < 30 || value > 200)) {
+            toast({
+              title: "Invalid Heart Rate",
+              description: "Heart rate must be between 30 and 200 bpm.",
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "exercise_days" && (value < 0 || value > 7)) {
+            toast({
+              title: "Invalid Exercise Days",
+              description: "Exercise days must be between 0 and 7.",
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "sedentary_hours" && (value < 0 || value > 24)) {
+            toast({
+              title: "Invalid Sedentary Hours",
+              description: "Sedentary hours must be between 0 and 24.",
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "sleep" && (value < 0 || value > 12)) {
+            toast({
+              title: "Invalid Sleep Hours",
+              description: "Sleep hours must be between 0 and 12.",
+              variant: "destructive",
+            });
+            return false;
+          }
+          if (field === "stress" && (value < 1 || value > 10)) {
+            toast({
+              title: "Invalid Stress Level",
+              description: "Stress level must be between 1 and 10.",
+              variant: "destructive",
+            });
+            return false;
+          }
+        }
       }
     }
-    return true
-  }
+    return true;
+  };
 
   const handleNext = () => {
-    if (!validateCurrentStep()) return
-
+    if (!validateCurrentStep()) return;
     if (currentStep < assessmentSteps.length - 1) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep(currentStep + 1);
       toast({
         title: "Step Completed",
         description: `Progress saved for step ${currentStep + 1}.`,
-      })
+      });
     } else {
-      handleSubmit()
+      handleSubmit();
     }
-  }
+  };
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
+      setCurrentStep(currentStep - 1);
     }
-  }
-
-  const calculateRiskScores = (data: FormData) => {
-    const bmi = data.weight && data.height ? parseFloat(data.weight) / Math.pow(parseFloat(data.height) / 100, 2) : 25
-    const gender = data.gender === 'male' ? 1 : 0
-    const obesity = bmi > 30 ? 1 : 0
-    const smoking = data.smoking === 'yes' || data.smoking === 'former' ? 1 : 0
-    const alcohol = data.alcohol === 'never' ? 0 : 1
-    const exerciseHours = (data.exercise_days || 3) * 2
-    const dietMap = { 'healthy': 0, 'vegetarian': 0, 'traditional': 1, 'mixed': 1, 'fast-food': 2 }
-    const diet = dietMap[data.diet] || 1
-    const [systolic, diastolic] = data.bloodPressure ? data.bloodPressure.split('/').map(Number) : [120, 80]
-
-    // Diabetes prediction with symptoms
-    const polydipsia = data.polydipsia === 'yes' ? 1 : 0
-    const polyuria = data.polyuria === 'yes' ? 1 : 0
-    const fatigue = data.fatigue === 'yes' ? 1 : 0
-    const diabetesX = [data.age || 40, gender, obesity, polydipsia, polyuria, fatigue, smoking, exerciseHours, diet, systolic]
-
-    let diabetesDot = diabetesIntercept
-    for (let i = 0; i < diabetesX.length; i++) {
-      diabetesDot += diabetesCoef[i] * diabetesX[i]
-    }
-    const diabetesProb = 1 / (1 + Math.exp(-diabetesDot))
-    const diabetesScore = diabetesProb * 100
-    const diabetesRiskLevel = diabetesScore < 30 ? "Low" : diabetesScore < 60 ? "Medium" : "High"
-
-    // Heart attack prediction with symptoms
-    const heartRate = data.heartRate || 80
-    const heartX = [data.age || 40, gender, meanCholesterol, heartRate, smoking, obesity, alcohol, exerciseHours, diet, systolic, diastolic, polydipsia, polyuria, fatigue]
-
-    let heartDot = heartIntercept
-    for (let i = 0; i < heartX.length; i++) {
-      heartDot += heartCoef[i] * heartX[i]
-    }
-    const heartProb = 1 / (1 + Math.exp(-heartDot))
-    const cvdScore = heartProb * 100
-    const cvdRiskLevel = cvdScore < 30 ? "Low" : cvdScore < 60 ? "Medium" : "High"
-
-    // Overall risk
-    const overallScore = Math.max(diabetesScore, cvdScore)
-    const overallRiskLevel = overallScore < 30 ? "Low" : overallScore < 60 ? "Medium" : "High"
-
-    return {
-      diabetes: { score: diabetesScore, level: diabetesRiskLevel },
-      cvd: { score: cvdScore, level: cvdRiskLevel },
-      overall: { score: overallScore, level: overallRiskLevel },
-    }
-  }
+  };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
+  try {
+      // Validate all required fields before submission
+      const requiredKeys = [
+        "age",
+        "gender",
+        "height",
+        "weight",
+        "bloodPressure",
+        "heartRate",
+        "polydipsia",
+        "polyuria",
+        "fatigue",
+        "family_history",
+        "previous_heart_problems",
+        "smoking",
+        "alcohol",
+        "diet",
+        "exercise_days",
+        "sedentary_hours",
+        "sleep",
+        "stress",
+      ];
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      const riskData = calculateRiskScores(formData)
-
-      const assessmentData = {
-        name: formData.name,
-        age: parseInt(formData.age, 10),
-        gender: formData.gender,
-        height: parseFloat(formData.height),
-        weight: parseFloat(formData.weight),
-        bloodPressure: formData.bloodPressure,
-        heartRate: parseInt(formData.heartRate, 10),
-        smoking: formData.smoking,
-        alcohol: formData.alcohol,
-        diet: formData.diet,
-        exercise_days: parseInt(formData.exercise_days, 10),
-        sedentary_hours: parseInt(formData.sedentary_hours, 10),
-        sleep: parseInt(formData.sleep, 10),
-        stress: parseInt(formData.stress, 10),
-        riskScores: {
-          diabetes: riskData.diabetes.score,
-          cvd: riskData.cvd.score,
-          overall: riskData.overall.score,
-        },
-        riskLevels: {
-          diabetes: riskData.diabetes.level,
-          cvd: riskData.cvd.level,
-          overall: riskData.overall.level,
-        },
+      for (const key of requiredKeys) {
+        if (formData[key] === undefined || formData[key] === null || formData[key] === "") {
+          throw new Error(`Missing required field: ${key}`);
+        }
       }
 
-      const response = await fetch(`${process.env.PORT}/api/assessments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(assessmentData),
-      })
+      // Validate blood pressure format
+    const [systolic, diastolic] = formData.bloodPressure.split("/").map(Number);
+    if (isNaN(systolic) || isNaN(diastolic)) {
+      throw new Error("Invalid blood pressure format. Please use '120/80' format.");
+    }
 
-      if (!response.ok) throw new Error('Failed to save assessment')
+    const payload = {
+          age: Number(formData.age),
+          gender: formData.gender, 
+          height: Number(formData.height),
+          weight: Number(formData.weight),
+          bloodPressure: formData.bloodPressure, 
+          heartRate: Number(formData.heartRate),
+          polydipsia: formData.polydipsia, 
+          polyuria: formData.polyuria,
+          fatigue: formData.fatigue,
+          family_history: formData.family_history,
+          previous_heart_problems: formData.previous_heart_problems,
+          smoking: formData.smoking,
+          alcohol: formData.alcohol,
+          diet: formData.diet,
+          exercise_days: Number(formData.exercise_days),
+          sedentary_hours: Number(formData.sedentary_hours),
+          sleep: Number(formData.sleep),
+          stress: Number(formData.stress),
+        };
 
-      const savedAssessment = await response.json()
+      console.log('Submitting payload:', JSON.stringify(payload, null, 2)); 
+
+      const response = await fetch("http://localhost:5000/api/predict/both", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `API error: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.error('API error details:', errorData);
+        } catch (e) {
+          console.error('Failed to parse error response:', e);
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('API response:', result); 
+
+      const diabetesScore = (result.diabetes_risk || 0) * 100;
+      const heartScore = (result.heart_risk || 0) * 100;
+      const overallScore = (diabetesScore + heartScore) / 2;
+
+      const getLevel = (score: number) => {
+        if (score < 30) return "Low";
+        if (score < 60) return "Medium";
+        return "High";
+      };
+
+      const assessmentData = {
+        riskScores: {
+          diabetes: diabetesScore,
+          cvd: heartScore,
+          overall: overallScore,
+        },
+        riskLevels: {
+          diabetes: getLevel(diabetesScore),
+          cvd: getLevel(heartScore),
+          overall: getLevel(overallScore),
+        },
+        data: formData,
+        apiResult: result,
+        date: new Date().toISOString(),
+      };
+
+      useEffect(() => {
+        if (assessmentData) {
+          localStorage.setItem("lastAssessment", JSON.stringify(assessmentData));
+        }
+      }, [assessmentData]);
+
       toast({
         title: "Assessment Complete!",
         description: (
           <div>
             <p>Your health assessment has been successfully processed.</p>
             <p className="mt-2">
-              <strong>Diabetes Risk:</strong> {riskData.diabetes.score.toFixed(1)}% ({riskData.diabetes.level})
+              <strong>Diabetes Risk:</strong> {diabetesScore.toFixed(1)}% ({getLevel(diabetesScore)})
             </p>
             <p>
-              <strong>Heart Disease Risk:</strong> {riskData.cvd.score.toFixed(1)}% ({riskData.cvd.level})
+              <strong>Heart Disease Risk:</strong> {heartScore.toFixed(1)}% ({getLevel(heartScore)})
             </p>
             <p>
-              <strong>Overall Risk:</strong> {riskData.overall.score.toFixed(1)}% ({riskData.overall.level})
+              <strong>Overall Risk:</strong> {overallScore.toFixed(1)}% ({getLevel(overallScore)})
             </p>
           </div>
         ),
-      })
-
-      router.push("/results")
+      });
+      router.push("/results");
     } catch (error) {
+      const errorMessage = (error as Error).message || 'An unexpected error occurred';
+      console.error('Submission error:', error);
       toast({
         title: "Error",
-        description: `Something went wrong. Please try again. Error: ${error.message}`,
+        description: errorMessage,
         variant: "destructive",
-      })
-      setIsSubmitting(false)
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slideshowImages.length)
-  }
+    setCurrentSlide((prev) => (prev + 1) % slideshowImages.length);
+  };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slideshowImages.length) % slideshowImages.length)
-  }
+    setCurrentSlide((prev) => (prev - 1 + slideshowImages.length) % slideshowImages.length);
+  };
 
-const renderStepContent = () => {
+  const renderStepContent = () => {
     switch (currentStep) {
-      case 0:
+      case 0: // Personal Information
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="age">Age</Label>
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Enter your name"
+                  value={formData.name || ""}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={formData.email || ""}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="age">Age *</Label>
                 <Input
                   id="age"
                   type="number"
@@ -319,7 +483,7 @@ const renderStepContent = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
+                <Label htmlFor="gender">Gender *</Label>
                 <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender" />
@@ -333,8 +497,7 @@ const renderStepContent = () => {
               </div>
             </div>
           </div>
-        )
-
+        );
       case 1: // Physical Measurements & Symptoms
         return (
           <div className="space-y-6">
@@ -364,10 +527,9 @@ const renderStepContent = () => {
                 />
               </div>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="bloodPressure" className="text-lg font-semibold text-slate-800">Blood Pressure (e.g., 120/80)</Label>
-              <p className="text-sm text-slate-600">If known, enter your recent blood pressure reading.</p>
+              <Label htmlFor="bloodPressure" className="text-lg font-semibold text-slate-800">Blood Pressure (e.g., 120/80) *</Label>
+              <p className="text-sm text-slate-600">Enter your recent blood pressure reading.</p>
               <Input
                 id="bloodPressure"
                 placeholder="120/80"
@@ -376,10 +538,9 @@ const renderStepContent = () => {
                 className="text-lg border-2 border-slate-200 focus:border-indigo-500 rounded-lg transition-all"
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="heartRate" className="text-lg font-semibold text-slate-800">Resting Heart Rate (bpm)</Label>
-              <p className="text-sm text-slate-600">Your typical resting heart rate, if known.</p>
+              <Label htmlFor="heartRate" className="text-lg font-semibold text-slate-800">Resting Heart Rate (bpm) *</Label>
+              <p className="text-sm text-slate-600">Your typical resting heart rate.</p>
               <Input
                 id="heartRate"
                 type="number"
@@ -389,38 +550,99 @@ const renderStepContent = () => {
                 className="text-lg border-2 border-slate-200 focus:border-indigo-500 rounded-lg transition-all"
               />
             </div>
-
             <div className="space-y-4">
               <Label className="text-lg font-semibold text-slate-800">Symptoms</Label>
               <p className="text-sm text-slate-600">Select any symptoms you’ve experienced recently.</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="yes" id="polydipsia-yes" onClick={() => handleInputChange("polydipsia", "yes")} />
-                  <Label htmlFor="polydipsia-yes">Excessive Thirst (Polydipsia)</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-800">Excessive Thirst (Polydipsia)</Label>
+                  <RadioGroup
+                    value={formData.polydipsia || "no"}
+                    onValueChange={(value) => handleInputChange("polydipsia", value)}
+                    className="flex space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="polydipsia-yes" />
+                      <Label htmlFor="polydipsia-yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="polydipsia-no" />
+                      <Label htmlFor="polydipsia-no">No</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="no" id="polydipsia-no" onClick={() => handleInputChange("polydipsia", "no")} />
-                  <Label htmlFor="polydipsia-no">No</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-800">Frequent Urination (Polyuria)</Label>
+                  <RadioGroup
+                    value={formData.polyuria || "no"}
+                    onValueChange={(value) => handleInputChange("polyuria", value)}
+                    className="flex space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="polyuria-yes" />
+                      <Label htmlFor="polyuria-yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="polyuria-no" />
+                      <Label htmlFor="polyuria-no">No</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="yes" id="polyuria-yes" onClick={() => handleInputChange("polyuria", "yes")} />
-                  <Label htmlFor="polyuria-yes">Frequent Urination (Polyuria)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="no" id="polyuria-no" onClick={() => handleInputChange("polyuria", "no")} />
-                  <Label htmlFor="polyuria-no">No</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="yes" id="fatigue-yes" onClick={() => handleInputChange("fatigue", "yes")} />
-                  <Label htmlFor="fatigue-yes">Unusual Fatigue</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="no" id="fatigue-no" onClick={() => handleInputChange("fatigue", "no")} />
-                  <Label htmlFor="fatigue-no">No</Label>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-800">Unusual Fatigue</Label>
+                  <RadioGroup
+                    value={formData.fatigue || "no"}
+                    onValueChange={(value) => handleInputChange("fatigue", value)}
+                    className="flex space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="fatigue-yes" />
+                      <Label htmlFor="fatigue-yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="fatigue-no" />
+                      <Label htmlFor="fatigue-no">No</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
               </div>
             </div>
-
+            <div className="space-y-4">
+              <Label className="text-lg font-semibold text-slate-800">Family History of Diabetes or Heart Disease</Label>
+              <p className="text-sm text-slate-600">Do any close relatives have diabetes or heart disease?</p>
+              <RadioGroup
+                value={formData.family_history || "no"}
+                onValueChange={(value) => handleInputChange("family_history", value)}
+                className="flex space-x-6"
+              >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
+                  <RadioGroupItem value="yes" id="family_history-yes" />
+                  <Label htmlFor="family_history-yes">Yes</Label>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
+                  <RadioGroupItem value="no" id="family_history-no" />
+                  <Label htmlFor="family_history-no">No</Label>
+                </motion.div>
+              </RadioGroup>
+            </div>
+            <div className="space-y-4">
+              <Label className="text-lg font-semibold text-slate-800">Previous Heart Problems</Label>
+              <p className="text-sm text-slate-600">Have you ever been diagnosed with heart-related issues?</p>
+              <RadioGroup
+                value={formData.previous_heart_problems || "no"}
+                onValueChange={(value) => handleInputChange("previous_heart_problems", value)}
+                className="flex space-x-6"
+              >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
+                  <RadioGroupItem value="yes" id="previous_heart_problems-yes" />
+                  <Label htmlFor="previous_heart_problems-yes">Yes</Label>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
+                  <RadioGroupItem value="no" id="previous_heart_problems-no" />
+                  <Label htmlFor="previous_heart_problems-no">No</Label>
+                </motion.div>
+              </RadioGroup>
+            </div>
             {formData.height && formData.weight && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -433,16 +655,13 @@ const renderStepContent = () => {
                     <p className="text-xs text-indigo-700">Body Mass Index</p>
                   </div>
                   <p className="text-2xl font-bold text-indigo-600">
-                    {(
-                      parseFloat(formData.weight) / Math.pow(parseFloat(formData.height) / 100, 2)
-                    ).toFixed(1)}
+                    {(parseFloat(formData.weight) / Math.pow(parseFloat(formData.height) / 100, 2)).toFixed(1)}
                   </p>
                 </div>
               </motion.div>
             )}
           </div>
-        )
-
+        );
       case 2: // Lifestyle Assessment
         return (
           <div className="space-y-6">
@@ -454,30 +673,20 @@ const renderStepContent = () => {
                 onValueChange={(value) => handleInputChange("smoking", value)}
                 className="flex space-x-6"
               >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center space-x-2"
-                >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
                   <RadioGroupItem value="yes" id="smoking-yes" />
                   <Label htmlFor="smoking-yes">Yes</Label>
                 </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center space-x-2"
-                >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
                   <RadioGroupItem value="no" id="smoking-no" />
                   <Label htmlFor="smoking-no">No</Label>
                 </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center space-x-2"
-                >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
                   <RadioGroupItem value="former" id="smoking-former" />
                   <Label htmlFor="smoking-former">Former smoker</Label>
                 </motion.div>
               </RadioGroup>
             </div>
-
             <div className="space-y-4">
               <Label className="text-lg font-semibold text-slate-800">Do you consume alcohol?</Label>
               <p className="text-sm text-slate-600">Alcohol consumption can affect heart health.</p>
@@ -486,32 +695,22 @@ const renderStepContent = () => {
                 onValueChange={(value) => handleInputChange("alcohol", value)}
                 className="flex space-x-6"
               >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center space-x-2"
-                >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
                   <RadioGroupItem value="never" id="alcohol-never" />
                   <Label htmlFor="alcohol-never">Never</Label>
                 </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center space-x-2"
-                >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
                   <RadioGroupItem value="occasionally" id="alcohol-occasionally" />
                   <Label htmlFor="alcohol-occasionally">Occasionally</Label>
                 </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center space-x-2"
-                >
+                <motion.div whileHover={{ scale: 1.05 }} className="flex items-center space-x-2">
                   <RadioGroupItem value="regularly" id="alcohol-regularly" />
                   <Label htmlFor="alcohol-regularly">Regularly</Label>
                 </motion.div>
               </RadioGroup>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="diet" className="text-lg font-semibold text-slate-800">Diet Type</Label>
+              <Label htmlFor="diet" className="text-lg font-semibold text-slate-800">Diet Type *</Label>
               <p className="text-sm text-slate-600">Your diet plays a key role in diabetes and heart risk.</p>
               <Select value={formData.diet || ""} onValueChange={(value) => handleInputChange("diet", value)}>
                 <SelectTrigger className="text-lg border-2 border-slate-200 focus:border-indigo-500 rounded-lg">
@@ -526,9 +725,8 @@ const renderStepContent = () => {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="exercise_days" className="text-lg font-semibold text-slate-800">Exercise days per week</Label>
+              <Label htmlFor="exercise_days" className="text-lg font-semibold text-slate-800">Exercise days per week *</Label>
               <p className="text-sm text-slate-600">How many days do you engage in physical activity?</p>
               <Input
                 id="exercise_days"
@@ -541,9 +739,8 @@ const renderStepContent = () => {
                 className="text-lg border-2 border-slate-200 focus:border-indigo-500 rounded-lg transition-all"
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="sedentary_hours" className="text-lg font-semibold text-slate-800">Sedentary hours per day</Label>
+              <Label htmlFor="sedentary_hours" className="text-lg font-semibold text-slate-800">Sedentary hours per day *</Label>
               <p className="text-sm text-slate-600">Hours spent sitting or lying down (excluding sleep).</p>
               <Input
                 id="sedentary_hours"
@@ -556,9 +753,8 @@ const renderStepContent = () => {
                 className="text-lg border-2 border-slate-200 focus:border-indigo-500 rounded-lg transition-all"
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="sleep" className="text-lg font-semibold text-slate-800">Sleep hours per night</Label>
+              <Label htmlFor="sleep" className="text-lg font-semibold text-slate-800">Sleep hours per night *</Label>
               <p className="text-sm text-slate-600">Average hours of sleep per night.</p>
               <Input
                 id="sleep"
@@ -571,9 +767,8 @@ const renderStepContent = () => {
                 className="text-lg border-2 border-slate-200 focus:border-indigo-500 rounded-lg transition-all"
               />
             </div>
-
             <div className="space-y-4">
-              <Label className="text-lg font-semibold text-slate-800">Stress Level (1-10)</Label>
+              <Label className="text-lg font-semibold text-slate-800">Stress Level (1-10) *</Label>
               <p className="text-sm text-slate-600">Rate your average stress level.</p>
               <div className="px-4">
                 <Slider
@@ -592,12 +787,11 @@ const renderStepContent = () => {
               </div>
             </div>
           </div>
-        )
-
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   if (isSubmitting) {
     return (
@@ -609,10 +803,7 @@ const renderStepContent = () => {
           className="text-center"
         >
           <div className="w-32 h-32 mx-auto mb-8 bg-gradient-to-r from-indigo-600 to-teal-500 rounded-full flex items-center justify-center shadow-lg">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            >
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
               <Activity className="w-16 h-16 text-white" />
             </motion.div>
           </div>
@@ -624,7 +815,7 @@ const renderStepContent = () => {
           <p className="text-sm text-slate-500 mt-4">This will take just a moment</p>
         </motion.div>
       </div>
-    )
+    );
   }
 
   return (
@@ -644,7 +835,6 @@ const renderStepContent = () => {
           </div>
         </div>
       </header>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid lg:grid-cols-2 gap-8 relative">
           <motion.div
@@ -660,7 +850,6 @@ const renderStepContent = () => {
               </div>
               <Progress value={progress} className="h-3 bg-indigo-100" />
             </div>
-
             <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-md rounded-2xl overflow-hidden">
               <CardHeader className="bg-gradient-to-r from-indigo-500 to-teal-400 text-white p-6">
                 <div className="flex items-center space-x-4">
@@ -675,7 +864,6 @@ const renderStepContent = () => {
               </CardHeader>
               <CardContent className="p-6 space-y-6">
                 {renderStepContent()}
-
                 <div className="flex justify-between pt-6 border-t border-slate-200">
                   <Button
                     variant="outline"
@@ -697,7 +885,6 @@ const renderStepContent = () => {
               </CardContent>
             </Card>
           </motion.div>
-
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -733,7 +920,6 @@ const renderStepContent = () => {
                     </div>
                   </motion.div>
                 </AnimatePresence>
-
                 <button
                   onClick={prevSlide}
                   className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/30 backdrop-blur-sm hover:bg-white/50 transition-colors"
@@ -746,7 +932,6 @@ const renderStepContent = () => {
                 >
                   <ChevronRight className="w-6 h-6 text-white" />
                 </button>
-
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-3">
                   {slideshowImages.map((_, index) => (
                     <button
@@ -759,37 +944,20 @@ const renderStepContent = () => {
                   ))}
                 </div>
               </div>
-
               <CardContent className="p-6">
                 <h4 className="font-semibold text-xl text-slate-900 mb-4">Health Insights</h4>
                 <div className="space-y-4">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-start space-x-3"
-                  >
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start space-x-3">
                     <div className="w-3 h-3 bg-indigo-500 rounded-full mt-2 flex-shrink-0" />
-                    <p className="text-base text-slate-600">
-                      Regular assessments help you stay ahead of health risks
-                    </p>
+                    <p className="text-base text-slate-600">Regular assessments help you stay ahead of health risks</p>
                   </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-start space-x-3"
-                  >
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start space-x-3">
                     <div className="w-3 h-3 bg-teal-500 rounded-full mt-2 flex-shrink-0" />
                     <p className="text-base text-slate-600">Honest answers ensure accurate results</p>
                   </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-start space-x-3"
-                  >
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start space-x-3">
                     <div className="w-3 h-3 bg-purple-500 rounded-full mt-2 flex-shrink-0" />
-                    <p className="text-base text-slate-600">
-                      Consult a doctor for personalized medical advice
-                    </p>
+                    <p className="text-base text-slate-600">Consult a doctor for personalized medical advice</p>
                   </motion.div>
                 </div>
               </CardContent>
@@ -798,5 +966,5 @@ const renderStepContent = () => {
         </div>
       </div>
     </div>
-  )
+  );
 }
