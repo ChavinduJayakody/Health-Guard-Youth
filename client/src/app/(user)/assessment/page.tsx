@@ -1,4 +1,3 @@
-// assessment/page.tsx (corrected)
 "use client";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -355,8 +354,9 @@ export default function AssessmentPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
+
 
       if (!response.ok) {
         let errorMessage = `API error: ${response.statusText}`;
@@ -373,8 +373,8 @@ export default function AssessmentPage() {
       const result = await response.json();
       console.log('API response:', result); 
 
-      const diabetesScore = (result.diabetes_risk || 0) * 100;
-      const heartScore = (result.heart_risk || 0) * 100;
+      const diabetesScore = (result.diabetes.score || 0);
+      const heartScore = (result.cvd.score || 0);
       const overallScore = (diabetesScore + heartScore) / 2;
 
       const getLevel = (score: number) => {
@@ -398,12 +398,9 @@ export default function AssessmentPage() {
         apiResult: result,
         date: new Date().toISOString(),
       };
+      localStorage.setItem("lastAssessment", JSON.stringify(assessmentData));
 
-      useEffect(() => {
-        if (assessmentData) {
-          localStorage.setItem("lastAssessment", JSON.stringify(assessmentData));
-        }
-      }, [assessmentData]);
+
 
       toast({
         title: "Assessment Complete!",
@@ -422,7 +419,9 @@ export default function AssessmentPage() {
           </div>
         ),
       });
-      router.push("/results");
+      setTimeout(() => {
+        router.push("/results");
+      }, 200); 
     } catch (error) {
       const errorMessage = (error as Error).message || 'An unexpected error occurred';
       console.error('Submission error:', error);

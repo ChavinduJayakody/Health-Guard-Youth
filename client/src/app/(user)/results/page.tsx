@@ -1,14 +1,13 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Heart, Droplets, ArrowRight, /* Download, */ Share, FileText } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
-// import { generateHealthReport } from "@/lib/pdf-generator" // Commented out until backend is configured
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Heart, Droplets, ArrowRight, Share, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 // Risk Meter Component
 const RiskMeter = ({
@@ -18,30 +17,28 @@ const RiskMeter = ({
   icon: Icon,
   color,
 }: {
-  score: number
-  level: string
-  type: string
-  icon: any
-  color: string
+  score: number;
+  level: string;
+  type: string;
+  icon: any;
+  color: string;
 }) => {
-  const [animatedScore, setAnimatedScore] = useState(0)
+  const [animatedScore, setAnimatedScore] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setAnimatedScore(score)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [score])
+      setAnimatedScore(score);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [score]);
 
-  const strokeColor = score < 30 ? "#10b981" : score < 60 ? "#f59e0b" : "#ef4444"
+  const strokeColor = score < 30 ? "#10b981" : score < 60 ? "#f59e0b" : "#ef4444";
 
   return (
     <div className="text-center">
       <div className="relative w-40 h-40 mx-auto mb-4">
         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-          {/* Background circle */}
           <circle cx="50" cy="50" r="35" fill="none" stroke="#e5e7eb" strokeWidth="6" />
-          {/* Progress circle */}
           <motion.circle
             cx="50"
             cy="50"
@@ -56,77 +53,75 @@ const RiskMeter = ({
             transition={{ duration: 2, ease: "easeOut" }}
           />
         </svg>
-
-        {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <Icon className={`w-6 h-6 mb-1 ${color}`} />
-          <div className="text-2xl font-bold">{animatedScore.toFixed(1)}%</div>
+          <div className="text-2xl font-bold">{animatedScore.toFixed(2)}%</div>
           <div className="text-xs text-slate-600">{level} Risk</div>
         </div>
       </div>
       <h3 className="font-semibold text-slate-900">{type}</h3>
     </div>
-  )
-}
+  );
+};
 
+interface AssessmentData {
+  data: Record<string, any>;
+  apiResult: any;
+  date: string;
+}
 export default function ResultsPage() {
-  const [assessment, setAssessment] = useState<any>(null)
-  const { toast } = useToast()
+  const [assessment, setAssessment] = useState<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const assessmentData = localStorage.getItem("lastAssessment")
-    if (assessmentData) {
-      const parsedAssessment = JSON.parse(assessmentData)
-      console.log("Parsed Assessment:", parsedAssessment) // Debug log to check data structure
-      setAssessment(parsedAssessment)
-    } else {
-      console.log("No assessment data found in localStorage") // Debug log
-    }
-  }, [])
-
-  // Commented out until backend is configured
-  /*
-  const generateReport = () => {
-    if (!assessment) return
-
     try {
-      const doc = generateHealthReport(assessment)
-      doc.save(`health-assessment-report-${new Date().toISOString().split("T")[0]}.pdf`)
-
-      toast({
-        title: "Report Generated Successfully",
-        description: "Your comprehensive health assessment report has been downloaded.",
-      })
+      const assessmentData = localStorage.getItem("lastAssessment");
+      if (assessmentData) {
+        const parsedAssessment = JSON.parse(assessmentData);
+        console.log("Parsed Assessment:", parsedAssessment); 
+        setAssessment(parsedAssessment);
+      } else {
+        console.log("No assessment data found in localStorage");
+        toast({
+          title: "No Assessment Found",
+          description: "Please complete an assessment to view your results.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
+      console.error("Error parsing assessment data:", error);
       toast({
-        title: "Error Generating Report",
-        description: "There was an issue creating your PDF report. Please try again.",
+        title: "Error",
+        description: "Failed to load assessment data. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }
-  */
+  }, [toast]);
 
   const shareResults = () => {
+    if (!assessment) return;
+
     if (navigator.share) {
       navigator.share({
         title: "My Health Assessment Results - HealthGuard Youth",
-        text: `I completed a health assessment on HealthGuard Youth. My overall risk level is ${assessment?.riskLevels?.overall || 'Unknown'}.`,
+        text: `I completed a health assessment on HealthGuard Youth. My overall risk level is ${
+          assessment?.riskLevels?.overall || "Unknown"
+        }.`,
         url: window.location.href,
-      })
+      });
     } else {
-      navigator.clipboard.writeText(window.location.href)
+      navigator.clipboard.writeText(window.location.href);
       toast({
         title: "Link Copied",
         description: "Assessment link copied to clipboard.",
-      })
+      });
     }
-  }
+  };
 
   const getRecommendations = () => {
-    if (!assessment) return []
+    if (!assessment) return [];
 
-    const recommendations = []
+    const recommendations = [];
 
     if (assessment.riskLevels?.overall === "High") {
       recommendations.push({
@@ -135,7 +130,7 @@ export default function ResultsPage() {
           "Your risk assessment indicates high risk. Please schedule an appointment with your doctor immediately for comprehensive evaluation.",
         priority: "high",
         icon: "🏥",
-      })
+      });
     }
 
     if (assessment.riskScores?.diabetes > 50) {
@@ -144,7 +139,7 @@ export default function ResultsPage() {
         description: "Consider joining a diabetes prevention program and monitor your blood sugar levels regularly.",
         priority: "high",
         icon: "🩺",
-      })
+      });
     }
 
     if (assessment.riskScores?.cvd > 50) {
@@ -153,7 +148,7 @@ export default function ResultsPage() {
         description: "Schedule a cardiovascular screening including ECG and lipid profile tests.",
         priority: "high",
         icon: "❤️",
-      })
+      });
     }
 
     if (assessment.data?.exercise_days < 3) {
@@ -162,17 +157,17 @@ export default function ResultsPage() {
         description: "Aim for at least 150 minutes of moderate exercise per week. Start with walking 30 minutes daily.",
         priority: "medium",
         icon: "🏃‍♂️",
-      })
+      });
     }
 
-    if (assessment.data?.smoking === "yes") {
+    if (assessment.data?.smoking === "yes" || assessment.data?.smoking === "former") {
       recommendations.push({
         title: "Quit Smoking Program",
         description:
           "Contact the National Authority on Tobacco and Alcohol (NATA) helpline: 1948 for smoking cessation support.",
         priority: "high",
         icon: "🚭",
-      })
+      });
     }
 
     if (assessment.data?.sleep < 7) {
@@ -181,7 +176,17 @@ export default function ResultsPage() {
         description: "Establish a regular sleep schedule and aim for 7-9 hours of quality sleep each night.",
         priority: "medium",
         icon: "😴",
-      })
+      });
+    }
+
+    if (assessment.data?.diet === "fast-food") {
+      recommendations.push({
+        title: "Adopt a Healthier Diet",
+        description:
+          "Reduce consumption of fast food and processed foods. Focus on balanced meals with vegetables, lean proteins, and whole grains.",
+        priority: "medium",
+        icon: "🥗",
+      });
     }
 
     recommendations.push({
@@ -189,7 +194,7 @@ export default function ResultsPage() {
       description: "Monitor your blood pressure, weight, and blood sugar levels regularly. Keep a health diary.",
       priority: "low",
       icon: "📊",
-    })
+    });
 
     recommendations.push({
       title: "Healthy Sri Lankan Diet",
@@ -197,10 +202,10 @@ export default function ResultsPage() {
         "Focus on traditional healthy foods like green leafy vegetables, fish, and limit processed foods and excessive rice consumption.",
       priority: "medium",
       icon: "🥗",
-    })
+    });
 
-    return recommendations
-  }
+    return recommendations;
+  };
 
   if (!assessment) {
     return (
@@ -217,10 +222,10 @@ export default function ResultsPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const recommendations = getRecommendations()
+  const recommendations = getRecommendations();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
@@ -236,7 +241,7 @@ export default function ResultsPage() {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
-              }) || 'Unknown Date'}
+              }) || "Unknown Date"}
             </p>
           </motion.div>
 
@@ -256,7 +261,7 @@ export default function ResultsPage() {
                   {/* Diabetes Risk */}
                   <RiskMeter
                     score={assessment.riskScores?.diabetes || 0}
-                    level={assessment.riskLevels?.diabetes || 'Unknown'}
+                    level={assessment.riskLevels?.diabetes || "Unknown"}
                     type="Diabetes Risk"
                     icon={Droplets}
                     color="text-blue-600"
@@ -267,12 +272,14 @@ export default function ResultsPage() {
                     <div className="w-48 h-48 mx-auto mb-4 relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-full opacity-10"></div>
                       <div className="absolute inset-4 bg-white rounded-full shadow-lg flex flex-col items-center justify-center">
-                        <div className="text-4xl font-bold text-slate-900 mb-2">{(assessment.riskScores?.overall || 0).toFixed(1)}%</div>
+                        <div className="text-4xl font-bold text-slate-900 mb-2">
+                          {(assessment.riskScores?.overall || 0).toFixed(1)}%
+                        </div>
                         <Badge
                           variant={assessment.riskLevels?.overall === "Low" ? "default" : "destructive"}
                           className="text-sm px-3 py-1"
                         >
-                          {assessment.riskLevels?.overall || 'Unknown'} Risk
+                          {assessment.riskLevels?.overall || "Unknown"} Risk
                         </Badge>
                         <p className="text-xs text-slate-600 mt-2">Overall Risk</p>
                       </div>
@@ -283,7 +290,7 @@ export default function ResultsPage() {
                   {/* CVD Risk */}
                   <RiskMeter
                     score={assessment.riskScores?.cvd || 0}
-                    level={assessment.riskLevels?.cvd || 'Unknown'}
+                    level={assessment.riskLevels?.cvd || "Unknown"}
                     type="Heart Disease Risk"
                     icon={Heart}
                     color="text-red-600"
@@ -303,7 +310,7 @@ export default function ResultsPage() {
             </Card>
           </motion.div>
 
-          {/* Recommendations */}
+          {/* Input Data Summary */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -314,43 +321,162 @@ export default function ResultsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center text-slate-900">
                   <FileText className="w-5 h-5 mr-2 text-emerald-600" />
+                  Your Assessment Input
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {assessment.data && (
+                    <>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Age</p>
+                        <p className="text-slate-600">{assessment.data.age || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Gender</p>
+                        <p className="text-slate-600">{assessment.data.gender || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Height</p>
+                        <p className="text-slate-600">{assessment.data.height ? `${assessment.data.height} cm` : "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Weight</p>
+                        <p className="text-slate-600">{assessment.data.weight ? `${assessment.data.weight} kg` : "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Blood Pressure</p>
+                        <p className="text-slate-600">{assessment.data.bloodPressure || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Heart Rate</p>
+                        <p className="text-slate-600">{assessment.data.heartRate ? `${assessment.data.heartRate} bpm` : "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Polydipsia</p>
+                        <p className="text-slate-600">{assessment.data.polydipsia || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Polyuria</p>
+                        <p className="text-slate-600">{assessment.data.polyuria || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Fatigue</p>
+                        <p className="text-slate-600">{assessment.data.fatigue || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Family History</p>
+                        <p className="text-slate-600">{assessment.data.family_history || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Previous Heart Problems</p>
+                        <p className="text-slate-600">{assessment.data.previous_heart_problems || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Smoking</p>
+                        <p className="text-slate-600">{assessment.data.smoking || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Alcohol</p>
+                        <p className="text-slate-600">{assessment.data.alcohol || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Diet</p>
+                        <p className="text-slate-600">{assessment.data.diet || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Exercise Days per Week</p>
+                        <p className="text-slate-600">{assessment.data.exercise_days ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Sedentary Hours per Day</p>
+                        <p className="text-slate-600">{assessment.data.sedentary_hours ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Sleep Hours per Night</p>
+                        <p className="text-slate-600">{assessment.data.sleep ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Stress Level</p>
+                        <p className="text-slate-600">{assessment.data.stress ?? "N/A"}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* Risk Scores Section */}
+              <div className="mt-6 p-4 rounded-lg bg-slate-50">
+                <h4 className="font-semibold text-slate-900 mb-3">📊 Risk Scores Summary</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Diabetes Score</p>
+                    <p className="text-slate-600">{assessment.riskScores?.diabetes?.toFixed(2) || "N/A"}%</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Heart Disease Score</p>
+                    <p className="text-slate-600">{assessment.riskScores?.cvd?.toFixed(2) || "N/A"}%</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Overall Score</p>
+                    <p className="text-slate-600">{assessment.riskScores?.overall?.toFixed(2) || "N/A"}%</p>
+                  </div>
+                </div>
+              </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Recommendations */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="mb-8"
+          >
+            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center text-slate-900">
+                  <FileText className="w-5 h-5 mr-2 text-emerald-600" />
                   Personalized Health Recommendations
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {recommendations.map((rec, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * index }}
-                      className={`p-4 rounded-lg border-l-4 ${
-                        rec.priority === "high"
-                          ? "border-red-500 bg-red-50"
-                          : rec.priority === "medium"
-                            ? "border-yellow-500 bg-yellow-50"
-                            : "border-green-500 bg-green-50"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3 flex-1">
-                          <span className="text-2xl">{rec.icon}</span>
-                          <div>
-                            <h4 className="font-semibold mb-2 text-slate-900">{rec.title}</h4>
-                            <p className="text-slate-700 text-sm">{rec.description}</p>
+                {recommendations.length > 0 ? (
+                  <div className="space-y-4">
+                    {recommendations.map((rec, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 * index }}
+                        className={`p-4 rounded-lg border-l-4 ${
+                          rec.priority === "high"
+                            ? "border-red-500 bg-red-50"
+                            : rec.priority === "medium"
+                              ? "border-yellow-500 bg-yellow-50"
+                              : "border-green-500 bg-green-50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3 flex-1">
+                            <span className="text-2xl">{rec.icon}</span>
+                            <div>
+                              <h4 className="font-semibold mb-2 text-slate-900">{rec.title}</h4>
+                              <p className="text-slate-700 text-sm">{rec.description}</p>
+                            </div>
                           </div>
+                          <Badge
+                            variant={rec.priority === "high" ? "destructive" : "secondary"}
+                            className="ml-4 shrink-0"
+                          >
+                            {rec.priority}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={rec.priority === "high" ? "destructive" : "secondary"}
-                          className="ml-4 shrink-0"
-                        >
-                          {rec.priority}
-                        </Badge>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-600">No recommendations available at this time.</p>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -359,7 +485,7 @@ export default function ResultsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.8 }}
             className="flex flex-col sm:flex-row gap-4 justify-center mb-8"
           >
             <Link href="/dashboard">
@@ -368,12 +494,6 @@ export default function ResultsPage() {
                 Go to Dashboard
               </Button>
             </Link>
-            {/* Commented out until backend is configured
-            <Button variant="outline" onClick={generateReport} className="px-6 bg-transparent">
-              <Download className="w-4 h-4 mr-2" />
-              Generate PDF Report
-            </Button>
-            */}
             <Button variant="outline" onClick={shareResults} className="px-6 bg-transparent">
               <Share className="w-4 h-4 mr-2" />
               Share Results
@@ -381,7 +501,7 @@ export default function ResultsPage() {
           </motion.div>
 
           {/* Next Steps */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0 }}>
             <Card className="shadow-lg border-0 bg-gradient-to-r from-blue-500 to-emerald-500 text-white">
               <CardContent className="p-6">
                 <h3 className="text-xl font-semibold mb-4">What's Next?</h3>
@@ -411,5 +531,5 @@ export default function ResultsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
