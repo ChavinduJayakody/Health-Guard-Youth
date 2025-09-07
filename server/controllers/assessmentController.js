@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Assessment from "../models/assessment.js";
 import User from "../models/User.js";
 
+
 export const createAssessment = async (req, res) => {
   try {
     const { userId, date, riskScores, riskLevels, data } = req.body;
@@ -41,14 +42,27 @@ export const createAssessment = async (req, res) => {
 
 export const getUserAssessments = async (req, res) => {
   try {
-    if (!req.user?._id) {
-      console.error("User not authenticated in getUserAssessments");
-      return res.status(401).json({ error: "User not authenticated" });
+    const { userId } = req.params;
+
+    // Validate userId
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      console.error("Invalid or missing userId:", userId);
+      return res.status(400).json({ error: "Invalid or missing userId" });
     }
-    const assessments = await Assessment.find({ userId: req.user._id }).sort({ date: -1 });
-    res.json(assessments);
+
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      console.error("User not found for ID:", userId);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Fetch assessments
+    const assessments = await Assessment.find({ userId }).sort({ date: -1 });
+    console.log(`Fetched ${assessments.length} assessments for user ${userId}`);
+    res.status(200).json(assessments);
   } catch (err) {
-    console.error("Error fetching assessments:", err);
+    console.error("Error fetching user assessments:", err);
     res.status(500).json({ error: "Failed to fetch assessments", details: err.message });
   }
 };
@@ -56,19 +70,15 @@ export const getUserAssessments = async (req, res) => {
 export const getAssessmentById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // validate  ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
       console.error("Invalid assessment ID:", id);
       return res.status(400).json({ error: "Invalid assessment ID" });
     }
-
     const assessment = await Assessment.findOne({ _id: id, userId: req.user._id });
     if (!assessment) {
       console.error("Assessment not found or not authorized for ID:", id);
       return res.status(404).json({ error: "Assessment not found or not authorized" });
     }
-
     console.log("Assessment fetched:", assessment);
     res.json(assessment);
   } catch (err) {

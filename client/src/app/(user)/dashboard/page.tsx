@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import {
   Heart,
@@ -21,38 +21,81 @@ import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/context/UserContext"
+import api from "@/lib/api"
+
+interface Assessment {
+  _id: string
+  userId: string
+  date: string
+  riskScores: { diabetes: number; cvd: number; overall: number }
+  riskLevels: { diabetes: string; cvd: string; overall: string }
+}
 
 export default function DashboardPage() {
-  const { user, loading, logout } = useUser()
-  const [lastAssessment, setLastAssessment] = useState<any>(null)
-  const [assessmentHistory, setAssessmentHistory] = useState<any[]>([])
+  const { user, loading } = useUser()
+  const [lastAssessment, setLastAssessment] = useState<Assessment | null>(null)
+  const [assessmentHistory, setAssessmentHistory] = useState<Assessment[]>([])
   const { toast } = useToast()
   const router = useRouter()
 
+  const fetchAssessments = useCallback(async () => {
+    if (!user?._id) return
+    try {
+      const res = await api.get(`/assessments/user/${user._id}`)
+      const data: Assessment[] = res.data
+
+      if (data.length > 0) {
+        // Sort by date descending
+        const sorted = data.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+        setAssessmentHistory(sorted)
+        setLastAssessment(sorted[0])
+      } else {
+        setAssessmentHistory([])
+        setLastAssessment(null)
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch assessments:", err)
+      toast({
+        title: "Error",
+        description: "Unable to fetch assessment history.",
+        variant: "destructive",
+      })
+    }
+  }, [user, toast])
+
+  useEffect(() => {
+    fetchAssessments()
+  }, [fetchAssessments])
+
   if (loading) return <p>Loading...</p>
 
-  // useEffect(() => {
-
-  //   const lastAssessmentData = localStorage.getItem("lastAssessment")
-  //   if (lastAssessmentData) {
-  //     setLastAssessment(JSON.parse(lastAssessmentData))
-  //   }
-
-  //   const historyData = localStorage.getItem("assessments")
-  //   if (historyData) {
-  //     setAssessmentHistory(JSON.parse(historyData))
-  //   }
-  // }, [router])
-
   const getHealthStatus = () => {
-    if (!lastAssessment) return { status: "Unknown", color: "bg-gray-500", message: "Take your first assessment" }
+    if (!lastAssessment)
+      return {
+        status: "Unknown",
+        color: "bg-gray-500",
+        message: "Take your first assessment",
+      }
 
-    if (lastAssessment.riskLevel === "Low") {
-      return { status: "Excellent", color: "bg-green-500", message: "Your health is on track!" }
-    } else if (lastAssessment.riskLevel === "Medium") {
-      return { status: "Good", color: "bg-yellow-500", message: "Some areas need attention" }
-    } else {
-      return { status: "Needs Attention", color: "bg-red-500", message: "Please consult a healthcare provider" }
+    const level = lastAssessment.riskLevels.overall
+    if (level === "Low")
+      return {
+        status: "Excellent",
+        color: "bg-green-500",
+        message: "Your health is on track!",
+      }
+    if (level === "Medium")
+      return {
+        status: "Good",
+        color: "bg-yellow-500",
+        message: "Some areas need attention",
+      }
+    return {
+      status: "Needs Attention",
+      color: "bg-red-500",
+      message: "Please consult a healthcare provider",
     }
   }
 
@@ -61,21 +104,23 @@ export default function DashboardPage() {
   const quickStats = [
     {
       title: "Overall Health Score",
-      value: lastAssessment ? `${100 - lastAssessment.overallRisk}%` : "N/A",
+      value: lastAssessment
+        ? `${(100 - lastAssessment.riskScores.overall).toFixed(1)}%`
+        : "N/A",
       icon: <Heart className="w-5 h-5" />,
       color: "text-red-600",
       bgColor: "bg-red-50",
     },
     {
       title: "Diabetes Risk",
-      value: lastAssessment ? `${lastAssessment.riskScores?.diabetes || 0}%` : "N/A",
+      value: lastAssessment ? `${lastAssessment.riskScores.diabetes.toFixed(1)}%` : "N/A",
       icon: <Activity className="w-5 h-5" />,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
     },
     {
       title: "CVD Risk",
-      value: lastAssessment ? `${lastAssessment.riskScores?.cvd || 0}%` : "N/A",
+      value: lastAssessment ? `${lastAssessment.riskScores.cvd.toFixed(1)}%` : "N/A",
       icon: <TrendingUp className="w-5 h-5" />,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -167,15 +212,13 @@ export default function DashboardPage() {
               transition={{ delay: index * 0.1 }}
             >
               <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-600">{stat.title}</p>
-                      <p className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</p>
-                    </div>
-                    <div className={`w-12 h-12 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
-                      <div className={stat.color}>{stat.icon}</div>
-                    </div>
+                <CardContent className="p-6 flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">{stat.title}</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</p>
+                  </div>
+                  <div className={`w-12 h-12 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
+                    <div className={stat.color}>{stat.icon}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -201,20 +244,30 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xl font-bold">{lastAssessment.overallRisk}%</span>
+                    <div
+                      className={`w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                        lastAssessment.riskLevels.overall === "Low"
+                          ? "bg-green-400"
+                          : lastAssessment.riskLevels.overall === "Medium"
+                          ? "bg-yellow-400"
+                          : "bg-red-400"
+                      }`}
+                    >
+                      <span className="text-white text-xl font-bold">
+                        {lastAssessment.riskScores.overall.toFixed(1)}%
+                      </span>
                     </div>
                     <h3 className="font-semibold text-slate-900">Overall Risk</h3>
                     <Badge
                       className={
-                        lastAssessment.riskLevel === "Low"
+                        lastAssessment.riskLevels.overall === "Low"
                           ? "bg-green-100 text-green-800"
-                          : lastAssessment.riskLevel === "Medium"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
+                          : lastAssessment.riskLevels.overall === "Medium"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
                       }
                     >
-                      {lastAssessment.riskLevel} Risk
+                      {lastAssessment.riskLevels.overall} Risk
                     </Badge>
                   </div>
 
@@ -222,22 +275,24 @@ export default function DashboardPage() {
                     <div>
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-slate-600">Diabetes Risk</span>
-                        <span className="font-medium">{lastAssessment.riskScores?.diabetes || 0}%</span>
+                        <span className="font-medium">{lastAssessment.riskScores.diabetes.toFixed(1)}%</span>
                       </div>
-                      <Progress value={lastAssessment.riskScores?.diabetes || 0} className="h-2" />
+                      <Progress value={lastAssessment.riskScores.diabetes} className="h-2" />
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-slate-600">Heart Disease Risk</span>
-                        <span className="font-medium">{lastAssessment.riskScores?.cvd || 0}%</span>
+                        <span className="font-medium">{lastAssessment.riskScores.cvd.toFixed(1)}%</span>
                       </div>
-                      <Progress value={lastAssessment.riskScores?.cvd || 0} className="h-2" />
+                      <Progress value={lastAssessment.riskScores.cvd} className="h-2" />
                     </div>
                   </div>
 
                   <div className="text-center">
                     <p className="text-sm text-slate-600 mb-2">Assessment Date</p>
-                    <p className="font-semibold text-slate-900">{new Date(lastAssessment.date).toLocaleDateString()}</p>
+                    <p className="font-semibold text-slate-900">
+                      {new Date(lastAssessment.date).toLocaleDateString()}
+                    </p>
                     <Link href="/results">
                       <Button variant="outline" size="sm" className="mt-4 bg-transparent">
                         View Full Results
@@ -279,35 +334,6 @@ export default function DashboardPage() {
             </motion.div>
           ))}
         </div>
-
-        {/* Health Tips */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
-          <Card className="shadow-lg border-0 bg-gradient-to-r from-emerald-500 to-blue-600 text-white">
-            <CardContent className="p-8">
-              <h3 className="text-2xl font-bold mb-4">💡 Daily Health Tips</h3>
-              <div className="grid md:grid-cols-3 gap-6">
-                <div>
-                  <h4 className="font-semibold mb-2">🥗 Nutrition</h4>
-                  <p className="text-emerald-100 text-sm">
-                    Include more leafy greens and reduce processed foods in your Sri Lankan diet for better health.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">🏃‍♂️ Exercise</h4>
-                  <p className="text-emerald-100 text-sm">
-                    Aim for 30 minutes of walking daily. Even climbing stairs counts as exercise!
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">😴 Sleep</h4>
-                  <p className="text-emerald-100 text-sm">
-                    Get 7-9 hours of quality sleep each night to support your body's natural healing processes.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
       </div>
     </div>
   )

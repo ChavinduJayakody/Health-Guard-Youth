@@ -87,6 +87,7 @@ export default function ResultsPage() {
   useEffect(() => {
     const fetchAssessment = async () => {
       if (!user?._id) {
+        console.log("User not authenticated:", user);
         toast({
           title: "Error",
           description: "Please sign in to view your assessment.",
@@ -165,18 +166,23 @@ export default function ResultsPage() {
         data: filteredData,
       };
 
-      api.post("/api/assessments", saveData)
+      api.post("/assessments", saveData)
         .then((response) => {
           toast({
             title: "Success",
             description: "Assessment saved to your history.",
           });
           localStorage.removeItem("lastAssessment");
-          // Optionally redirect to the saved assessment
-          router.push(`/results/${response.data._id}`);
+          // router.push(`/results/${response.data._id}`);
         })
         .catch((err) => {
           console.error("Error saving assessment:", err);
+          let errorMessage = "Failed to save assessment to history.";
+            if (err.response?.status === 404) {
+              errorMessage = "API endpoint not found. Please check the server configuration.";
+            } else if (err.response?.status === 401) {
+              errorMessage = "Unauthorized. Please sign in again.";
+            }
           toast({
             title: "Error",
             description: "Failed to save assessment to history.",
