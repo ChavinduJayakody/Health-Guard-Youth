@@ -8,8 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { useRouter, useParams } from "next/navigation";
+import api from "@/lib/api";
+import { useUser } from "@/context/UserContext";
 
-// Risk Meter Component
+// Risk Meter 
 const RiskMeter = ({
   score,
   level,
@@ -65,38 +68,123 @@ const RiskMeter = ({
 };
 
 interface AssessmentData {
-  data: Record<string, any>;
-  apiResult: any;
+  _id?: string;
+  userId?: string;
   date: string;
+  riskScores: { diabetes: number; cvd: number; overall: number };
+  riskLevels: { diabetes: string; cvd: string; overall: string };
+  data: Record<string, any>;
 }
+
 export default function ResultsPage() {
-  const [assessment, setAssessment] = useState<any>(null);
+  const [assessment, setAssessment] = useState<AssessmentData | null>(null);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useUser();
+  const router = useRouter();
+  const { id } = useParams(); 
 
   useEffect(() => {
-    try {
-      const assessmentData = localStorage.getItem("lastAssessment");
-      if (assessmentData) {
-        const parsedAssessment = JSON.parse(assessmentData);
-        console.log("Parsed Assessment:", parsedAssessment); 
-        setAssessment(parsedAssessment);
-      } else {
-        console.log("No assessment data found in localStorage");
+    const fetchAssessment = async () => {
+      if (!user?._id) {
         toast({
-          title: "No Assessment Found",
-          description: "Please complete an assessment to view your results.",
+          title: "Error",
+          description: "Please sign in to view your assessment.",
           variant: "destructive",
         });
+        router.push("/auth");
+        return;
       }
-    } catch (error) {
-      console.error("Error parsing assessment data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load assessment data. Please try again.",
-        variant: "destructive",
-      });
+
+      if (id) {
+        try {
+          const response = await api.get(`/api/assessments/${id}`);
+          setAssessment(response.data);
+        } catch (err) {
+          console.error("Error fetching assessment:", err);
+          toast({
+            title: "Error",
+            description: "Failed to load assessment. Please try again.",
+            variant: "destructive",
+          });
+          router.push("/dashboard");
+        }
+      } else {
+        try {
+          const assessmentData = localStorage.getItem("lastAssessment");
+          if (assessmentData) {
+            const parsedAssessment = JSON.parse(assessmentData);
+            console.log("Parsed Assessment:", parsedAssessment);
+            setAssessment(parsedAssessment);
+          } else {
+            console.log("No assessment data found in localStorage");
+            toast({
+              title: "No Assessment Found",
+              description: "Please complete an assessment to view your results.",
+              variant: "destructive",
+            });
+            router.push("/assessment");
+          }
+        } catch (error) {
+          console.error("Error parsing assessment data:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load assessment data. Please try again.",
+            variant: "destructive",
+          });
+          router.push("/assessment");
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchAssessment();
+  }, [id, user, toast, router]);
+
+  useEffect(() => {
+    if (assessment && !id && user?._id) {
+      const filteredData = {
+        age: assessment.data.age,
+        gender: assessment.data.gender,
+        height: assessment.data.height,
+        weight: assessment.data.weight,
+        exercise_days: assessment.data.exercise_days,
+        sleep: assessment.data.sleep,
+        diet: assessment.data.diet,
+        smoking: assessment.data.smoking,
+        alcohol: assessment.data.alcohol,
+        stress: assessment.data.stress,
+        sedentary_hours: assessment.data.sedentary_hours,
+      };
+
+      const saveData = {
+        userId: user._id,
+        date: assessment.date,
+        riskScores: assessment.riskScores,
+        riskLevels: assessment.riskLevels,
+        data: filteredData,
+      };
+
+      api.post("/api/assessments", saveData)
+        .then((response) => {
+          toast({
+            title: "Success",
+            description: "Assessment saved to your history.",
+          });
+          localStorage.removeItem("lastAssessment");
+          // Optionally redirect to the saved assessment
+          router.push(`/results/${response.data._id}`);
+        })
+        .catch((err) => {
+          console.error("Error saving assessment:", err);
+          toast({
+            title: "Error",
+            description: "Failed to save assessment to history.",
+            variant: "destructive",
+          });
+        });
     }
-  }, [toast]);
+  }, [assessment, id, user, toast, router]);
 
   const shareResults = () => {
     if (!assessment) return;
@@ -207,13 +295,26 @@ export default function ResultsPage() {
     return recommendations;
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 flex items-center justify-center">
+        <Card className="p-8 text-center max-w-md">
+          <CardContent>
+            <h2 className="text-xl font-semibold mb-4">Loading...</h2>
+            <p className="text-slate-600 mb-6">Fetching your assessment details.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!assessment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 flex items-center justify-center">
         <Card className="p-8 text-center max-w-md">
           <CardContent>
             <h2 className="text-xl font-semibold mb-4">No Assessment Found</h2>
-            <p className="text-slate-600 mb-6">Please complete an assessment first to view your results.</p>
+            <p className="text-slate-600 mb-6">Please complete an assessment to view your results.</p>
             <Link href="/assessment">
               <Button className="bg-gradient-to-r from-blue-500 to-emerald-500 hover:from-blue-600 hover:to-emerald-600 text-white">
                 Take Assessment
@@ -345,34 +446,6 @@ export default function ResultsPage() {
                         <p className="text-slate-600">{assessment.data.weight ? `${assessment.data.weight} kg` : "N/A"}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">Blood Pressure</p>
-                        <p className="text-slate-600">{assessment.data.bloodPressure || "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Heart Rate</p>
-                        <p className="text-slate-600">{assessment.data.heartRate ? `${assessment.data.heartRate} bpm` : "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Polydipsia</p>
-                        <p className="text-slate-600">{assessment.data.polydipsia || "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Polyuria</p>
-                        <p className="text-slate-600">{assessment.data.polyuria || "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Fatigue</p>
-                        <p className="text-slate-600">{assessment.data.fatigue || "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Family History</p>
-                        <p className="text-slate-600">{assessment.data.family_history || "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Previous Heart Problems</p>
-                        <p className="text-slate-600">{assessment.data.previous_heart_problems || "N/A"}</p>
-                      </div>
-                      <div>
                         <p className="text-sm font-semibold text-slate-900">Smoking</p>
                         <p className="text-slate-600">{assessment.data.smoking || "N/A"}</p>
                       </div>
@@ -403,24 +476,23 @@ export default function ResultsPage() {
                     </>
                   )}
                 </div>
-                {/* Risk Scores Section */}
-              <div className="mt-6 p-4 rounded-lg bg-slate-50">
-                <h4 className="font-semibold text-slate-900 mb-3">📊 Risk Scores Summary</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Diabetes Score</p>
-                    <p className="text-slate-600">{assessment.riskScores?.diabetes?.toFixed(2) || "N/A"}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Heart Disease Score</p>
-                    <p className="text-slate-600">{assessment.riskScores?.cvd?.toFixed(2) || "N/A"}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Overall Score</p>
-                    <p className="text-slate-600">{assessment.riskScores?.overall?.toFixed(2) || "N/A"}%</p>
+                <div className="mt-6 p-4 rounded-lg bg-slate-50">
+                  <h4 className="font-semibold text-slate-900 mb-3">📊 Risk Scores Summary</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Diabetes Score</p>
+                      <p className="text-slate-600">{assessment.riskScores?.diabetes?.toFixed(2) || "N/A"}%</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Heart Disease Score</p>
+                      <p className="text-slate-600">{assessment.riskScores?.cvd?.toFixed(2) || "N/A"}%</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Overall Score</p>
+                      <p className="text-slate-600">{assessment.riskScores?.overall?.toFixed(2) || "N/A"}%</p>
+                    </div>
                   </div>
                 </div>
-              </div>
               </CardContent>
             </Card>
           </motion.div>
