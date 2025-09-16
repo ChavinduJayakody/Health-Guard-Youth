@@ -343,7 +343,7 @@ export default function AuthPage() {
         <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
           <CardHeader className="text-center pb-2">
             <motion.div
-              animate={{ rotate: 360 }}
+              // animate={{ rotate: 360 }}
               transition={{
                 duration: 20,
                 repeat: Number.POSITIVE_INFINITY,
