@@ -38,155 +38,150 @@ import {
   Cell,
 } from "recharts"
 import { useToast } from "@/hooks/use-toast"
-// import { generateAdminReport } from "@/lib/pdf-generator"
+import { generateAdminReport } from "@/lib/pdf-generator"
+import { useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAdmin } from "@/context/AdminContext"
+import api from "@/lib/api"
+import jsPDF from "jspdf"
+import "jspdf-autotable"
 
-const riskTrendData = [
-  { month: "Jan", low: 45, medium: 30, high: 25 },
-  { month: "Feb", low: 42, medium: 32, high: 26 },
-  { month: "Mar", low: 40, medium: 35, high: 25 },
-  { month: "Apr", low: 38, medium: 37, high: 25 },
-  { month: "May", low: 35, medium: 40, high: 25 },
-  { month: "Jun", low: 33, medium: 42, high: 25 },
-]
 
-const ageGroupData = [
-  { age: "15-18", diabetes: 12, cardiovascular: 8, total: 20, male: 11, female: 9 },
-  { age: "19-22", diabetes: 25, cardiovascular: 18, total: 43, male: 24, female: 19 },
-  { age: "23-26", diabetes: 35, cardiovascular: 28, total: 63, male: 35, female: 28 },
-  { age: "27-30", diabetes: 28, cardiovascular: 22, total: 50, male: 27, female: 23 },
-]
-
-const genderDistribution = [
-  { name: "Male", value: 52, color: "#3b82f6" },
-  { name: "Female", value: 48, color: "#ec4899" },
-]
-
-const usageStats = [
-  { name: "Total Patients", value: 1247, change: "+12%", color: "#10b981", icon: Users },
-  { name: "Assessments Today", value: 89, change: "+5%", color: "#3b82f6", icon: Activity },
-  { name: "High Risk Cases", value: 156, change: "+8%", color: "#ef4444", icon: AlertTriangle },
-  { name: "Reports Generated", value: 234, change: "+15%", color: "#8b5cf6", icon: FileText },
-]
-
-const recentAssessments = [
-  {
-    id: 1,
-    name: "Kasun Perera",
-    age: 24,
-    gender: "Male",
-    risk: "High",
-    diabetesRisk: 78,
-    cvdRisk: 65,
-    date: "2024-01-15",
-    location: "Colombo",
-  },
-  {
-    id: 2,
-    name: "Nimali Silva",
-    age: 22,
-    gender: "Female",
-    risk: "Medium",
-    diabetesRisk: 45,
-    cvdRisk: 38,
-    date: "2024-01-15",
-    location: "Kandy",
-  },
-  {
-    id: 3,
-    name: "Tharindu Fernando",
-    age: 26,
-    gender: "Male",
-    risk: "Low",
-    diabetesRisk: 23,
-    cvdRisk: 28,
-    date: "2024-01-14",
-    location: "Galle",
-  },
-  {
-    id: 4,
-    name: "Sachini Jayawardena",
-    age: 21,
-    gender: "Female",
-    risk: "Medium",
-    diabetesRisk: 52,
-    cvdRisk: 41,
-    date: "2024-01-14",
-    location: "Negombo",
-  },
-  {
-    id: 5,
-    name: "Chamara Rathnayake",
-    age: 28,
-    gender: "Male",
-    risk: "High",
-    diabetesRisk: 71,
-    cvdRisk: 69,
-    date: "2024-01-13",
-    location: "Matara",
-  },
-  {
-    id: 6,
-    name: "Priyanka Wickramasinghe",
-    age: 25,
-    gender: "Female",
-    risk: "Medium",
-    diabetesRisk: 48,
-    cvdRisk: 35,
-    date: "2024-01-13",
-    location: "Colombo",
-  },
-]
+const iconMap = {
+  Users,
+  Activity,
+  AlertTriangle,
+  FileText,
+}
 
 export default function AdminDashboard() {
-  const { admin, loading, logout } = useAdmin()
+  const { admin, loading: adminloading, logout } = useAdmin()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterRisk, setFilterRisk] = useState("all")
   const [filterGender, setFilterGender] = useState("all")
+  const [dashboardData, setDashboardData] = useState({
+    usageStats: [],
+    recentAssessments: [],
+    genderDistribution: [],
+    ageGroupData: [],
+    riskTrendData: [],
+  })
+  const [dashboardLoading, setDashboardLoading] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
-if (loading) return <p>Loading...</p>
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!admin || adminloading) return 
+      try {
+        setDashboardLoading(true)
+        const response = await api.get("/admin/dashboard", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token") || ""}`, 
+          },
+        })
+        const data = response.data
+        // if (!response.ok) {
+        //   throw new Error("Failed to fetch dashboard data")
+        // }
+        // const data = await response.json()
+
+        const transformedRecentAssessments = data.recentAssessments.map((assessment: any) => ({
+          id: assessment._id,
+          name: assessment.userId?.name || "Unknown",
+          age: assessment.userId?.age || 0,
+          gender: assessment.userId?.gender || "Unknown",
+          risk: assessment.riskLevels?.overall || "Low",
+          diabetesRisk: Math.round(assessment.riskScores?.diabetes || 0),
+          cvdRisk: Math.round(assessment.riskScores?.cvd || 0),
+          date: new Date(assessment.date).toISOString().split("T")[0],
+          location: assessment.userId?.location || "Unknown",
+        }))
+
+        const transformedUsageStats = data.usageStats.map((stat: any) => ({
+          ...stat,
+          icon: iconMap[stat.icon as keyof typeof iconMap] || Users,
+        }))
+
+        setDashboardData({
+          ...data,
+          recentAssessments: transformedRecentAssessments,
+          usageStats: transformedUsageStats,
+        })
+      } catch (error: any) {
+        toast({
+          title: "Error Loading Dashboard",
+          description: error.message || "Failed to fetch data. Please refresh the page.",
+          variant: "destructive",
+        })
+      } finally {
+        setDashboardLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [admin, adminloading, toast])
+
+  if (adminloading) return <p>Loading...</p>
+
+  const { usageStats, recentAssessments, genderDistribution, ageGroupData, riskTrendData } = dashboardData
+
   const handleLogout = async () => {
-  try {
-    await logout(); // calls AdminContext logout
-    toast({
-      title: "Logged Out Successfully",
-      description: "You have been safely logged out of the admin panel.",
-    });
-  } catch (err: any) {
-    toast({
-      title: "Logout Failed",
-      description: err?.message || "Something went wrong",
-      variant: "destructive",
-    });
-  }
-};
-
-
-  const exportData = () => {
     try {
-      const doc = generateAdminReport({
-        stats: usageStats,
-        assessments: recentAssessments,
-        trends: riskTrendData,
-        ageGroups: ageGroupData,
-      })
-      doc.save(`healthguard-admin-report-${new Date().toISOString().split("T")[0]}.pdf`)
-
+      await logout(); 
       toast({
-        title: "Report Generated Successfully",
-        description: "Administrative report has been downloaded.",
-      })
-    } catch (error) {
+        title: "Logged Out Successfully",
+        description: "You have been safely logged out of the admin panel.",
+      });
+    } catch (err: any) {
       toast({
-        title: "Export Error",
-        description: "There was an issue generating the report. Please try again.",
+        title: "Logout Failed",
+        description: err?.message || "Something went wrong",
         variant: "destructive",
-      })
+      });
     }
   }
+
+const riskTrendRef = useRef<HTMLDivElement>(null)
+const genderRef = useRef<HTMLDivElement>(null)
+const ageGroupRef = useRef<HTMLDivElement>(null)
+
+const exportData = async () => {
+  try {
+        [riskTrendRef, genderRef, ageGroupRef].forEach((ref) => {
+      if (ref.current) {
+        ref.current.style.backgroundColor = "#ffffff"
+        ref.current.style.color = "#000000"
+      }
+    })
+    const doc = await generateAdminReport({
+      stats: usageStats,
+      assessments: recentAssessments,
+      trends: riskTrendData,
+      ageGroups: ageGroupData,
+      chartRefs: {
+        riskTrendChart: riskTrendRef.current,
+        genderChart: genderRef.current,
+        ageGroupChart: ageGroupRef.current,
+      },
+    })
+    doc.save(`healthguard-admin-report-${new Date().toISOString().split("T")[0]}.pdf`)
+
+    toast({
+      title: "Report Generated Successfully",
+      description: "Administrative report has been downloaded.",
+    })
+  } catch (error) {
+    console.error("Error generating report:", error)
+    toast({
+      title: "Export Error",
+      description: "There was an issue generating the report. Please try again.",
+      variant: "destructive",
+
+    })
+  }
+}
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
@@ -201,7 +196,7 @@ if (loading) return <p>Loading...</p>
     }
   }
 
-  const filteredAssessments = recentAssessments.filter((assessment) => {
+  const filteredAssessments = recentAssessments.filter((assessment: any) => {
     const matchesSearch =
       assessment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       assessment.location.toLowerCase().includes(searchTerm.toLowerCase())
@@ -212,6 +207,14 @@ if (loading) return <p>Loading...</p>
 
   if (!admin) {
     return <div>Loading...</div>
+  }
+
+  if (dashboardLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <p className="text-lg text-slate-600">Loading dashboard data...</p>
+      </div>
+    )
   }
 
   return (
@@ -250,7 +253,7 @@ if (loading) return <p>Loading...</p>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {usageStats.map((stat, index) => (
+          {usageStats.map((stat: any, index: number) => (
             <motion.div
               key={stat.name}
               initial={{ opacity: 0, y: 20 }}
@@ -286,7 +289,7 @@ if (loading) return <p>Loading...</p>
             transition={{ duration: 0.5, delay: 0.4 }}
             className="lg:col-span-2"
           >
-            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
+            <Card ref={riskTrendRef} className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
@@ -324,7 +327,7 @@ if (loading) return <p>Loading...</p>
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
           >
-            <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
+            <Card ref={genderRef} className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Users className="w-5 h-5 mr-2 text-purple-600" />
@@ -334,8 +337,8 @@ if (loading) return <p>Loading...</p>
               <CardContent>
                 <ChartContainer
                   config={{
-                    male: { label: "Male", color: "#3b82f6" },
-                    female: { label: "Female", color: "#ec4899" },
+                    male: { label: "Male"},
+                    female: { label: "Female"},
                   }}
                   className="h-[300px]"
                 >
@@ -350,7 +353,7 @@ if (loading) return <p>Loading...</p>
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {genderDistribution.map((entry, index) => (
+                        {genderDistribution.map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -359,7 +362,7 @@ if (loading) return <p>Loading...</p>
                   </ResponsiveContainer>
                 </ChartContainer>
                 <div className="flex justify-center space-x-4 mt-4">
-                  {genderDistribution.map((item) => (
+                  {genderDistribution.map((item: any, index: number) => (
                     <div key={item.name} className="flex items-center space-x-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                       <span className="text-sm text-slate-600">
@@ -380,7 +383,7 @@ if (loading) return <p>Loading...</p>
           transition={{ duration: 0.5, delay: 0.6 }}
           className="mb-8"
         >
-          <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
+          <Card ref={ageGroupRef} className="shadow-lg border-0 bg-white/95 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <BarChart3 className="w-5 h-5 mr-2 text-emerald-600" />
@@ -464,56 +467,60 @@ if (loading) return <p>Loading...</p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {filteredAssessments.map((assessment, index) => (
-                  <motion.div
-                    key={assessment.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
-                        {assessment.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-slate-900">{assessment.name}</h4>
-                        <p className="text-sm text-slate-600">
-                          {assessment.gender}, Age: {assessment.age} • {assessment.location}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-6">
-                      <div className="text-center">
-                        <div className="flex items-center space-x-1 mb-1">
-                          <Droplets className="w-4 h-4 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-600">{assessment.diabetesRisk}%</span>
+                {filteredAssessments.length > 0 ? (
+                  filteredAssessments.map((assessment: any, index: number) => (
+                    <motion.div
+                      key={assessment.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+                          {assessment.name
+                            .split(" ")
+                            .map((n: string) => n[0])
+                            .join("")}
                         </div>
-                        <p className="text-xs text-slate-500">Diabetes</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center space-x-1 mb-1">
-                          <Heart className="w-4 h-4 text-red-600" />
-                          <span className="text-sm font-medium text-red-600">{assessment.cvdRisk}%</span>
-                        </div>
-                        <p className="text-xs text-slate-500">CVD</p>
-                      </div>
-                      <Badge className={getRiskColor(assessment.risk)}>
-                        {assessment.risk === "High" && <AlertTriangle className="w-3 h-3 mr-1" />}
-                        {assessment.risk} Risk
-                      </Badge>
-                      <div className="text-right">
-                        <div className="flex items-center space-x-1 text-sm text-slate-600">
-                          <Calendar className="w-3 h-3" />
-                          <span>{assessment.date}</span>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">{assessment.name}</h4>
+                          <p className="text-sm text-slate-600">
+                            {assessment.gender}, Age: {assessment.age} • {assessment.location}
+                          </p>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                      <div className="flex items-center space-x-6">
+                        <div className="text-center">
+                          <div className="flex items-center space-x-1 mb-1">
+                            <Droplets className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-600">{assessment.diabetesRisk}%</span>
+                          </div>
+                          <p className="text-xs text-slate-500">Diabetes</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="flex items-center space-x-1 mb-1">
+                            <Heart className="w-4 h-4 text-red-600" />
+                            <span className="text-sm font-medium text-red-600">{assessment.cvdRisk}%</span>
+                          </div>
+                          <p className="text-xs text-slate-500">CVD</p>
+                        </div>
+                        <Badge className={getRiskColor(assessment.risk)}>
+                          {assessment.risk === "High" && <AlertTriangle className="w-3 h-3 mr-1" />}
+                          {assessment.risk} Risk
+                        </Badge>
+                        <div className="text-right">
+                          <div className="flex items-center space-x-1 text-sm text-slate-600">
+                            <Calendar className="w-3 h-3" />
+                            <span>{assessment.date}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <p className="text-center text-slate-500 py-8">No assessments found matching the filters.</p>
+                )}
               </div>
             </CardContent>
           </Card>
