@@ -8,6 +8,10 @@ interface User {
   _id: string
   name: string
   email: string
+  age: number
+  gender: string
+  height: number
+  weight: number
 }
 
 interface UserContextType {

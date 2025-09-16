@@ -109,6 +109,8 @@ export default function AssessmentPage() {
         email: user.email || prev.email,
         age: user.age || prev.age,
         gender: user.gender || prev.gender,
+        height: user.height || prev.height,
+        weight: user.weight || prev.weight,
       }));
       toast({
         title: "User Data Loaded",
