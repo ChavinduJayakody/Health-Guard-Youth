@@ -7,6 +7,7 @@ import adminRoutes from "./routes/admin.js";
 import cookieParser from "cookie-parser";
 import predictRoutes from "./routes/predictRoutes.js";
 import assessmentRoutes from "./routes/assessment.js";
+import articleRoutes from "./routes/article.js";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes); 
 app.use("/api/predict", predictRoutes);
 app.use("/api/assessments", assessmentRoutes);
+app.use("/api/articles", articleRoutes);
 
 // test
 import { protect } from "./middleware/authMiddleware.js";
